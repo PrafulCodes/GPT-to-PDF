@@ -103,9 +103,6 @@ async function getLaunchOptions() {
     const puppeteerCore = req('puppeteer-core');
 
     const executablePath = await chromium.executablePath();
-    console.log('[Vercel PDF] environment:', runtimeLabel);
-    console.log('[Vercel PDF] runtime: nodejs');
-    console.log('[Vercel PDF] executablePath:', executablePath);
 
     if (!executablePath) {
       throw new Error('Chromium executablePath missing');

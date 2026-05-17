@@ -67,8 +67,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('PDF Generation Error:', err);
-    console.error('message:', err?.message);
-    console.error('stack:', err?.stack);
     return new Response(JSON.stringify({ error: true, message: 'PDF generation failed. Please try again.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
