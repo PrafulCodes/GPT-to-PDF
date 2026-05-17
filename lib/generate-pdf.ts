@@ -1,8 +1,13 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
-import chromium from '@sparticuz/chromium';
+// @sparticuz/chromium-min does NOT bundle the binary — it downloads it at runtime
+// from the URL passed to executablePath(). This keeps the function under Vercel's 50MB limit.
+import chromium from '@sparticuz/chromium-min';
 import puppeteerCore from 'puppeteer-core';
+import fs from 'fs';
+import path from 'path';
 import { ParsedConversation } from './parse-chat';
+import { creatorName, creatorUrl, siteHost, siteUrl } from './branding';
 
 export type PdfTiming = {
   htmlGenerationMs: number;
@@ -31,7 +36,18 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function getFaviconDataUrl() {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'favicon.png');
+    const icon = fs.readFileSync(filePath);
+    return `data:image/png;base64,${icon.toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+
 function buildHtml(conv: ParsedConversation) {
+  const faviconDataUrl = getFaviconDataUrl();
   const messagesHtml = conv.messages
     .map((m) => {
       const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
@@ -50,7 +66,8 @@ function buildHtml(conv: ParsedConversation) {
   <title>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</title>
   <style>
     /* Minimal reset and system font stack to avoid external font loading */
-    html,body{margin:0;padding:18px;color:#0b1220;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;font-size:13px}
+    html,body{margin:0;padding:18px 18px 44px;color:#0b1220;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    a{color:inherit;text-decoration:none}
     .container{max-width:800px;margin:0 auto}
     header{margin-bottom:12px}
     .title{font-weight:700;font-size:18px;margin:0 0 6px}
@@ -62,11 +79,25 @@ function buildHtml(conv: ParsedConversation) {
     pre{background:#0b1220;color:#e6eef8;padding:8px;border-radius:6px;overflow:auto;font-size:12px}
     table{border-collapse:collapse;width:100%}
     table th, table td{padding:8px;border-bottom:1px solid #eef2f7;font-size:13px}
-    footer{font-size:11px;color:#6b7280;margin-top:12px;text-align:center}
+    .pdf-footer{position:fixed;left:18mm;right:18mm;bottom:10mm;display:flex;justify-content:center;z-index:2;pointer-events:none}
+    .pdf-footer-card{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #d9e2ef;border-radius:999px;background:rgba(255,255,255,.96);box-shadow:0 8px 22px rgba(15,23,42,.08);backdrop-filter:blur(8px);pointer-events:auto}
+    .pdf-footer-label{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#64748b}
+    .pdf-footer-link{font-size:11px;font-weight:700;color:#0f172a}
+    .pdf-footer-divider{color:#cbd5e1}
+    .brand-watermark{position:fixed;top:16mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.12;pointer-events:none}
+    .brand-watermark img{width:30px;height:30px;border-radius:8px}
+    .brand-watermark span{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#0b1220}
+    .page-mark{position:fixed;bottom:24mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.22;pointer-events:none}
+    .page-mark img{width:18px;height:18px;border-radius:4px}
+    .page-mark span{font-size:10px;color:#6b7280}
     @page{size:A4;margin:18mm}
   </style>
 </head>
 <body>
+  <div class="brand-watermark">
+    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
+    <span>GPT to PDF</span>
+  </div>
   <div class="container">
     <header>
       <div class="title">${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</div>
@@ -75,7 +106,18 @@ function buildHtml(conv: ParsedConversation) {
     <main>
       ${messagesHtml}
     </main>
-    <footer>GPT to PDF — Made by Praful Mohite</footer>
+    <footer class="pdf-footer" aria-label="PDF branding">
+      <div class="pdf-footer-card">
+        <span class="pdf-footer-label">Made by</span>
+        <a class="pdf-footer-link" href="${creatorUrl}">${escapeHtml(creatorName)}</a>
+        <span class="pdf-footer-divider" aria-hidden="true">•</span>
+        <a class="pdf-footer-link" href="${siteUrl}">${escapeHtml(siteHost)}</a>
+      </div>
+    </footer>
+  </div>
+  <div class="page-mark">
+    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
+    <span>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</span>
   </div>
 </body>
 </html>`;
@@ -95,14 +137,16 @@ async function getLaunchOptions() {
   const fs = require('fs');
 
   if (isVercel) {
-    const executablePath = await chromium.executablePath();
+    // chromium-min requires a hosted binary URL.
+    // Set CHROMIUM_REMOTE_EXEC_PATH on Vercel to the GitHub releases tar URL for v133:
+    // https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar
+    const remoteUrl = process.env.CHROMIUM_REMOTE_EXEC_PATH ||
+      'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar';
+
+    const executablePath = await chromium.executablePath(remoteUrl);
 
     if (!executablePath) {
-      throw new Error('Chromium executablePath missing');
-    }
-
-    if (!fs.existsSync(executablePath)) {
-      throw new Error(`Chromium binary not found at path: ${executablePath}`);
+      throw new Error('Chromium executablePath missing — check CHROMIUM_REMOTE_EXEC_PATH env var');
     }
 
     launchOptions = {

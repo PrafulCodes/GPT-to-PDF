@@ -2,19 +2,29 @@ const PDF_GENERATED_COUNT_KEY = 'stats:pdf-generated-count';
 let fallbackCount = 0;
 
 function hasKvConfig() {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  return Boolean(
+    (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) ||
+    (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  );
+}
+
+function getKvConfig() {
+  const baseUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  return { baseUrl, token };
 }
 
 async function kvRequest<T>(command: 'get' | 'incr'): Promise<T> {
-  const baseUrl = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const { baseUrl, token } = getKvConfig();
 
   if (!baseUrl || !token) {
     throw new Error('KV environment variables are not configured');
   }
 
+  const method = command === 'get' ? 'GET' : 'POST';
+
   const response = await fetch(`${baseUrl}/${command}/${PDF_GENERATED_COUNT_KEY}`, {
-    method: 'GET',
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'

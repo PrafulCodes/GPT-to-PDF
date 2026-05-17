@@ -1,24 +1,25 @@
 'use client';
 import React, { useState } from 'react';
+import { parseContentDispositionFileName } from '../lib/pdf-filename';
 
 type ProgressStage = 'idle' | 'fetching' | 'formatting' | 'generating' | 'preparing' | 'done';
 
 const stageMeta: Record<Exclude<ProgressStage, 'idle' | 'done'>, { label: string; hint: string }> = {
   fetching: {
-    label: 'Fetching conversation...',
-    hint: 'Longer chats may take slightly longer to convert.'
+    label: 'Fetching conversation…',
+    hint: 'Longer chats may take a moment — hang tight.'
   },
   formatting: {
-    label: 'Formatting content...',
-    hint: 'Longer chats may take slightly longer to convert.'
+    label: 'Formatting content…',
+    hint: 'Longer chats may take a moment — hang tight.'
   },
   generating: {
-    label: 'Generating premium PDF...',
-    hint: 'Longer chats may take slightly longer to convert.'
+    label: 'Generating your PDF…',
+    hint: 'Longer chats may take a moment — hang tight.'
   },
   preparing: {
-    label: 'Preparing download...',
-    hint: 'Longer chats may take slightly longer to convert.'
+    label: 'Preparing download…',
+    hint: 'Almost there — your file is nearly ready.'
   }
 };
 
@@ -49,8 +50,9 @@ export default function HeroInputCard() {
     try {
       const text = await navigator.clipboard.readText();
       setUrl((text || '').trim());
-    } catch (err) {
-      setError('Unable to access clipboard');
+      setError(null);
+    } catch {
+      setError('Unable to access clipboard. Please paste manually.');
     }
   };
 
@@ -63,7 +65,7 @@ export default function HeroInputCard() {
       return;
     }
 
-    if (loading) return; // prevent duplicate clicks
+    if (loading) return;
 
     setLoading(true);
     setProgress('fetching');
@@ -90,15 +92,15 @@ export default function HeroInputCard() {
       const blob = await res.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'conversation.pdf';
+      link.download = parseContentDispositionFileName(res.headers.get('content-disposition')) || 'conversation.pdf';
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(link.href);
 
       setProgress('done');
-      setTimeout(() => setProgress('idle'), 1200);
-    } catch (err: any) {
+      setTimeout(() => setProgress('idle'), 1800);
+    } catch {
       setError('PDF generation failed. Please try again.');
       setProgress('idle');
     } finally {
@@ -109,140 +111,240 @@ export default function HeroInputCard() {
 
   const progressIndex = stageOrder.indexOf(progress as Exclude<ProgressStage, 'idle' | 'done'>);
   const progressPercent = progress === 'done' ? 100 : progressIndex >= 0 ? ((progressIndex + 1) / stageOrder.length) * 100 : 0;
-
   const currentStage = progress !== 'idle' && progress !== 'done' ? stageMeta[progress] : null;
 
   return (
-    <div className="site-container">
-      <div className="card max-w-full mx-auto" style={{maxWidth:'var(--max-width)'}}>
-        <div style={{display:'flex',flexDirection:'column',gap:'var(--space-3)'}}>
-          <div>
-            <div className="badge-eyebrow">Free · No signup · No extension</div>
-          </div>
+    <div className="hero-input-wrap">
+      {/* ── URL input row ── */}
+      <div className="hero-input-row">
+        {/* Input fills the row */}
+        <div className="hero-input-field">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') generate(); }}
+            placeholder="https://chatgpt.com/share/…"
+            className={`input-url ${error ? 'input-error' : ''}`}
+            aria-label="ChatGPT share URL"
+            inputMode="url"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+        </div>
 
-          <div>
-            <h3 style={{fontSize:'var(--text-2xl)',fontWeight:'var(--weight-medium)',margin:0,letterSpacing:'-0.03em'}}>Export ChatGPT Conversations to PDF</h3>
-            <p style={{fontSize:'var(--text-base)',color:'var(--color-text-secondary)',marginTop:'var(--space-3)',maxWidth:540}}>Paste a public ChatGPT share link. Get a clean, formatted PDF instantly.</p>
-          </div>
-
-          <div style={{marginTop:'var(--space-6)'}}>
-            <div style={{display:'flex',gap:'var(--space-2)',alignItems:'center',flexWrap:'wrap'}}>
-              <div style={{flex:1,position:'relative'}}>
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') generate(); }}
-                  placeholder="https://chatgpt.com/share/..."
-                  className={`input-url ${error ? 'input-error' : ''}`}
-                  aria-label="ChatGPT share URL"
-                  inputMode="url"
-                />
-              </div>
-
-              <div style={{display:'flex',gap:'var(--space-2)',alignItems:'center'}}>
-                <button type="button" onClick={pasteFromClipboard} className="btn-ghost" style={{minWidth:96}}>Paste</button>
-                <button
-                  type="button"
-                  onClick={generate}
-                  className={`btn-primary ${loading ? 'btn-loading' : ''}`}
-                  disabled={loading}
-                  aria-busy={loading}
-                >
-                  {loading ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                      <span className="btn-pulse" />
-                      <span>Generating...</span>
-                    </span>
-                  ) : 'Generate PDF'}
-                </button>
-              </div>
-            </div>
-
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'var(--space-2)'}}>
-              <div className="helper-text">Works with public ChatGPT shared links - no login required</div>
-              <div style={{ minHeight: 20 }} aria-live="polite">{loading ? currentStage?.label || 'Working...' : ''}</div>
-            </div>
-
-            {/* Success / Error banners */}
-            <div style={{marginTop:'var(--space-3)'}}>
-              {progress === 'done' && (
-                <div style={{background:'var(--color-success-bg)',border:`1px solid rgba(22,163,74,0.2)`,borderRadius:'var(--radius-md)',padding:'var(--space-3) var(--space-4)',display:'flex',alignItems:'center',gap:12,color:'var(--color-success)',fontSize:'var(--text-sm)'}} role="status">
-                  <span style={{width:16,height:16,display:'inline-block',borderRadius:8,background:'transparent'}} aria-hidden>✔</span>
-                  <div>PDF ready — download started</div>
-                </div>
-              )}
-
-              {error && (
-                <div role="alert" style={{background:'var(--color-error-bg)',border:`1px solid rgba(220,38,38,0.2)`,borderRadius:'var(--radius-md)',padding:'var(--space-3) var(--space-4)',display:'flex',alignItems:'center',gap:12,color:'var(--color-error)',fontSize:'var(--text-sm)'}}>
-                  <span style={{width:16,height:16,display:'inline-block'}} aria-hidden>!</span>
-                  <div style={{flex:1}}>{error} <button onClick={() => setError(null)} style={{marginLeft:12,textDecoration:'underline',color:'var(--color-error)',background:'transparent',border:0,cursor:'pointer'}}>Try again</button></div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ minHeight: 150, marginTop: 'var(--space-4)' }}>
-              {loading && currentStage && (
-                <div className="premium-loader" role="status" aria-live="polite">
-                  <div className="premium-loader-title">{currentStage.label}</div>
-                  <div className="premium-loader-track" aria-hidden>
-                    <div className="premium-loader-fill" style={{ width: `${progressPercent}%` }} />
-                  </div>
-                  <div className="premium-loader-steps" aria-hidden>
-                    {stageOrder.map((stage, idx) => {
-                      const active = progressPercent >= ((idx + 1) / stageOrder.length) * 100;
-                      return <span key={stage} className={`premium-dot ${active ? 'active' : ''}`} />;
-                    })}
-                  </div>
-                  <div className="premium-loader-hint">{currentStage.hint}</div>
-                </div>
-              )}
-            </div>
-
-          </div>
+        {/* Action buttons — row on mobile, row on desktop */}
+        <div className="hero-action-row">
+          <button
+            type="button"
+            onClick={pasteFromClipboard}
+            className="btn-ghost hero-btn-paste"
+            aria-label="Paste URL from clipboard"
+          >
+            Paste
+          </button>
+          <button
+            type="button"
+            onClick={generate}
+            className={`btn-primary hero-btn-generate ${loading ? 'btn-loading' : ''}`}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                <span className="btn-pulse" aria-hidden />
+                <span>Generating…</span>
+              </span>
+            ) : 'Generate PDF'}
+          </button>
         </div>
       </div>
 
+      {/* Helper text */}
+      <div className="hero-helper-row">
+        <span className="helper-text">Works with public ChatGPT shared links — no login required</span>
+        {loading && currentStage && (
+          <span className="hero-stage-label" aria-live="polite">{currentStage.label}</span>
+        )}
+      </div>
+
+      {/* Status banners */}
+      <div className="hero-banners">
+        {progress === 'done' && (
+          <div className="status-banner status-success" role="status">
+            <span className="status-icon" aria-hidden>✔</span>
+            <span>Your PDF is ready — download started.</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="status-banner status-error" role="alert">
+            <span className="status-icon" aria-hidden>!</span>
+            <span style={{ flex: 1 }}>
+              {error}{' '}
+              <button
+                onClick={() => setError(null)}
+                className="banner-retry"
+              >
+                Try again
+              </button>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Progress loader */}
+      {loading && currentStage && (
+        <div className="premium-loader" role="status" aria-live="polite">
+          <div className="premium-loader-title">{currentStage.label}</div>
+          <div className="premium-loader-track" aria-hidden>
+            <div className="premium-loader-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="premium-loader-steps" aria-hidden>
+            {stageOrder.map((stage, idx) => {
+              const active = progressPercent >= ((idx + 1) / stageOrder.length) * 100;
+              return <span key={stage} className={`premium-dot ${active ? 'active' : ''}`} />;
+            })}
+          </div>
+          <div className="premium-loader-hint">{currentStage.hint}</div>
+        </div>
+      )}
+
       <style>{`
+        /* ── Hero layout ── */
+        .hero-input-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .hero-input-row {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .hero-input-field {
+          width: 100%;
+        }
+
+        .hero-action-row {
+          display: flex;
+          gap: 8px;
+          width: 100%;
+        }
+
+        .hero-btn-paste {
+          flex: 0 0 auto;
+          min-width: 88px;
+        }
+
+        .hero-btn-generate {
+          flex: 1 1 auto;
+          justify-content: center;
+        }
+
+        .hero-helper-row {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          align-items: center;
+          gap: 6px;
+          min-height: 20px;
+        }
+
+        .hero-stage-label {
+          font-size: 11px;
+          color: var(--color-accent);
+          font-weight: 500;
+          letter-spacing: 0.01em;
+        }
+
+        .hero-banners {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        /* ── Status banners ── */
+        .status-banner {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          border-radius: var(--radius-md);
+          padding: 12px 14px;
+          font-size: var(--text-sm);
+          line-height: 1.5;
+        }
+        .status-success {
+          background: var(--color-success-bg);
+          border: 1px solid rgba(22,163,74,0.2);
+          color: var(--color-success);
+        }
+        .status-error {
+          background: var(--color-error-bg);
+          border: 1px solid rgba(220,38,38,0.2);
+          color: var(--color-error);
+        }
+        .status-icon {
+          flex-shrink: 0;
+          font-size: 13px;
+          margin-top: 1px;
+        }
+        .banner-retry {
+          background: transparent;
+          border: 0;
+          cursor: pointer;
+          color: var(--color-error);
+          text-decoration: underline;
+          font-size: inherit;
+          padding: 0;
+          margin-left: 4px;
+        }
+
+        /* ── Progress loader ── */
         .btn-loading {
-          min-width: 164px;
           transition: transform 220ms ease, opacity 220ms ease, background-color 220ms ease;
         }
 
         .btn-pulse {
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           border-radius: 9999px;
           background: rgba(255, 255, 255, 0.96);
           box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
           animation: pulseDot 1.3s ease-out infinite;
+          flex-shrink: 0;
         }
 
         .premium-loader {
-          margin: 6px auto 0;
-          max-width: 580px;
+          margin-top: 4px;
+          width: 100%;
           border: 1px solid rgba(15, 23, 42, 0.08);
-          border-radius: 16px;
-          padding: 16px 18px;
+          border-radius: 14px;
+          padding: 16px;
           background:
-            radial-gradient(circle at 18% 22%, rgba(59, 130, 246, 0.09), transparent 35%),
+            radial-gradient(circle at 18% 22%, rgba(59, 130, 246, 0.07), transparent 40%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-          backdrop-filter: blur(2px);
-          animation: fadeSlideIn 280ms ease;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+          animation: fadeSlideIn 260ms ease;
+          box-sizing: border-box;
         }
 
         .premium-loader-title {
           text-align: center;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           color: #0f172a;
           font-weight: 550;
           letter-spacing: 0.01em;
-          transition: opacity 260ms ease, transform 260ms ease;
         }
 
         .premium-loader-track {
           margin-top: 12px;
-          height: 8px;
+          height: 6px;
           border-radius: 9999px;
           background: rgba(148, 163, 184, 0.22);
           overflow: hidden;
@@ -263,44 +365,65 @@ export default function HeroInputCard() {
         }
 
         .premium-dot {
-          width: 8px;
-          height: 8px;
+          width: 7px;
+          height: 7px;
           border-radius: 9999px;
           background: rgba(100, 116, 139, 0.26);
-          transform: scale(1);
           transition: transform 280ms ease, background-color 280ms ease;
         }
 
         .premium-dot.active {
           background: rgba(14, 116, 240, 0.9);
-          transform: scale(1.08);
+          transform: scale(1.15);
         }
 
         .premium-loader-hint {
           margin-top: 10px;
           text-align: center;
-          font-size: 0.82rem;
-          color: rgba(71, 85, 105, 0.88);
+          font-size: 0.78rem;
+          color: rgba(71, 85, 105, 0.8);
+          line-height: 1.5;
         }
 
         @keyframes pulseDot {
-          0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
-          100% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0); }
+          0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
+          100% { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
         }
 
         @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(5px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
 
-        @media (max-width: 640px) {
-          .premium-loader {
-            border-radius: 14px;
-            padding: 14px;
+        /* ── Desktop: side-by-side input + buttons ── */
+        @media (min-width: 641px) {
+          .hero-input-row {
+            flex-direction: row;
+            align-items: center;
           }
 
-          .btn-loading {
+          .hero-input-field {
+            flex: 1 1 auto;
+            min-width: 0;
+          }
+
+          .hero-action-row {
+            flex: 0 0 auto;
+            width: auto;
+          }
+
+          .hero-btn-paste {
+            min-width: 80px;
+          }
+
+          .hero-btn-generate {
+            flex: 0 0 auto;
             min-width: 148px;
+          }
+
+          .btn-primary,
+          .btn-ghost {
+            width: auto;
           }
         }
       `}</style>

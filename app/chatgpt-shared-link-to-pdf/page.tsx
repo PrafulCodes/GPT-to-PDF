@@ -4,6 +4,8 @@ import Navbar from '../../components/Navbar';
 import HeroInputCard from '../../components/HeroInputCard';
 import Footer from '../../components/Footer';
 
+const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+
 export const metadata: Metadata = {
   title: 'ChatGPT Shared Link to PDF Converter — Paste URL, Download PDF',
   description:
@@ -19,16 +21,16 @@ export const metadata: Metadata = {
   ].join(', '),
   robots: 'index, follow',
   alternates: {
-    canonical: 'https://your-domain.com/chatgpt-shared-link-to-pdf'
+    canonical: `${siteUrl}/chatgpt-shared-link-to-pdf`
   },
   openGraph: {
     title: 'ChatGPT Shared Link to PDF Converter',
     description: 'Convert any ChatGPT shared conversation link to a clean PDF.',
-    url: 'https://your-domain.com/chatgpt-shared-link-to-pdf',
+    url: `${siteUrl}/chatgpt-shared-link-to-pdf`,
     type: 'website',
     images: [
       {
-        url: 'https://your-domain.com/og-image.png',
+        url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630
       }
@@ -38,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'ChatGPT Shared Link to PDF Converter',
     description: 'Convert any ChatGPT shared conversation link to a clean PDF.',
-    images: ['https://your-domain.com/og-image.png']
+    images: [`${siteUrl}/og-image.png`]
   }
 };
 
@@ -83,13 +85,13 @@ export default function ChatGPTSharedLinkPage() {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://your-domain.com'
+        item: siteUrl
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'ChatGPT Shared Link to PDF',
-        item: 'https://your-domain.com/chatgpt-shared-link-to-pdf'
+        item: `${siteUrl}/chatgpt-shared-link-to-pdf`
       }
     ]
   };
