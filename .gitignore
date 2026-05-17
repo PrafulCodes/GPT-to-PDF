@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+.vercel
+dist
+build
+*.pdf
+shared_page.html
+temp_err.html
+perf-*.pdf
+conversation.pdf
