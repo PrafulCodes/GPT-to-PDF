@@ -1,5 +1,8 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
+// These are declared at module level so nft (node-file-trace) can detect them
+// and include them in the Vercel serverless function output package.
+// DO NOT use eval('require') — that hides imports from the tracer.
 let sparticuz: any = null;
 let PuppeteerCore: any = null;
 import { ParsedConversation } from './parse-chat';
@@ -82,12 +85,8 @@ function buildHtml(conv: ParsedConversation) {
 }
 
 async function getLaunchOptions() {
-  // Defer loading runtime-only modules to avoid bundler/runtime issues
-  const req: any = eval('require');
-
   // Detect environment: prefer Vercel detection for production serverless
   const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
-  const runtimeLabel = isVercel ? 'vercel' : 'local';
 
   if (cachedLaunchOptions && cachedLaunchOptions.serverless === isVercel) return cachedLaunchOptions.options;
 
@@ -96,11 +95,13 @@ async function getLaunchOptions() {
     ignoreHTTPSErrors: true
   };
 
-  const fs = req('fs');
+  const fs = require('fs');
 
   if (isVercel) {
-    const chromium = req('@sparticuz/chromium');
-    const puppeteerCore = req('puppeteer-core');
+    // Use direct require() so Vercel's node-file-trace can detect these modules
+    // and include them in the serverless function package at build time.
+    const chromium = require('@sparticuz/chromium');
+    const puppeteerCore = require('puppeteer-core');
 
     const executablePath = await chromium.executablePath();
 
@@ -109,7 +110,7 @@ async function getLaunchOptions() {
     }
 
     if (!fs.existsSync(executablePath)) {
-      throw new Error(`Chromium executablePath missing: ${executablePath}`);
+      throw new Error(`Chromium binary not found at path: ${executablePath}`);
     }
 
     sparticuz = chromium;
@@ -119,7 +120,7 @@ async function getLaunchOptions() {
       ...launchOptions,
       args: chromium.args,
       executablePath,
-      headless: 'new'
+      headless: true
     };
   } else {
     // Local development: prefer puppeteer's bundled Chromium (no executablePath)
@@ -145,16 +146,17 @@ async function getLaunchOptions() {
 
     if (found) {
       // Use system Chrome if available (local)
-      launchOptions = { ...launchOptions, executablePath: found, headless: 'new' };
+      launchOptions = { ...launchOptions, executablePath: found, headless: true };
     } else {
       // Use bundled Chromium shipped with puppeteer
-      launchOptions = { ...launchOptions, headless: 'new' };
+      launchOptions = { ...launchOptions, headless: true };
     }
   }
 
   cachedLaunchOptions = { options: launchOptions, serverless: isVercel };
   return launchOptions;
 }
+
 
 async function getSharedBrowser(): Promise<Browser> {
   if (!sharedBrowserPromise) {
