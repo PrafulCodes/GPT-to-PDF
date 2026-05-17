@@ -272,9 +272,9 @@ export async function generatePdf(
       <div style="
         width: 100%;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 10mm;
+        flex-direction: column;
+        gap: 8px;
+        padding: 5px 10mm 0 10mm;
         box-sizing: border-box;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 9px;
@@ -282,13 +282,21 @@ export async function generatePdf(
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         border-top: 0.5px solid rgba(11,18,32,0.10);
-        padding-top: 5px;
       ">
-        <span style="display:inline-flex;align-items:center;gap:5px;">
-          ${footerFaviconTag}
-          <span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">GPT to PDF</span>
-        </span>
-        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+          <span style="display:inline-flex;align-items:center;gap:5px;">
+            ${footerFaviconTag}
+            <span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">GPT to PDF</span>
+          </span>
+          <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px;font-size:8.5px;">
+          <span style="display:flex;align-items:center;gap:4px;">
+            <span>Made by</span>
+            <a href="${creatorUrl}" style="color:#1D4ED8;font-weight:600;text-decoration:none;display:inline;"><span>${creatorName}</span></a>
+          </span>
+          <a href="${siteUrl}" style="color:rgba(11,18,32,0.42);text-decoration:none;display:inline;">${siteHost}</a>
+        </div>
       </div>
     `;
 
@@ -296,9 +304,9 @@ export async function generatePdf(
       format: 'A4',
       printBackground: true,
       // top/left/right margins: content breathing room.
-      // bottom: sized to hold the footerTemplate (≈12mm) + 5px spacing above it.
+      // bottom: sized to hold the footerTemplate (≈20mm) including branding lines + spacing.
       // This is the ONLY margin declaration — the HTML has no @page rule.
-      margin: { top: '14mm', bottom: '14mm', left: '10mm', right: '10mm' },
+      margin: { top: '14mm', bottom: '20mm', left: '10mm', right: '10mm' },
       scale: 0.95,
       preferCSSPageSize: false,
       displayHeaderFooter: true,

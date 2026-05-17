@@ -247,6 +247,42 @@ export default function HeroInputCard() {
           justify-content: center;
         }
 
+        .input-url {
+          width: 100%;
+          height: 52px;
+          padding: 0 12px;
+          border-radius: var(--radius-md);
+          border: 1.5px solid var(--color-border-strong);
+          background: var(--color-neutral-50);
+          font-family: var(--font-mono);
+          font-size: var(--text-sm);
+          color: var(--color-text-primary);
+          box-sizing: border-box;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        .input-url:focus {
+          outline: none;
+          border: 1.5px solid var(--color-accent);
+        }
+
+        @media (max-width: 414px) {
+          .input-url {
+            height: 48px;
+            padding: 0 10px;
+            font-size: 12px;
+          }
+        }
+
+        @media (max-width: 320px) {
+          .input-url {
+            height: 44px;
+            padding: 0 8px;
+            font-size: 11px;
+          }
+        }
+
         .hero-helper-row {
           display: flex;
           flex-wrap: wrap;
@@ -427,12 +463,43 @@ export default function HeroInputCard() {
           }
         }
 
-        /* ── Smallest phones (max 320px): shrink Paste button so Generate stays readable ── */
+        /* ── Smallest phones (max 414px): optimize button sizing and padding ── */
+        @media (max-width: 414px) {
+          .hero-btn-paste {
+            min-width: 64px;
+            padding: 0 8px;
+            font-size: 12px;
+            height: 44px;
+          }
+
+          .hero-btn-generate {
+            min-height: 44px;
+            font-size: 13px;
+            padding: 0 12px;
+          }
+
+          .hero-action-row {
+            gap: 6px;
+          }
+        }
+
+        /* ── Smallest phones (max 320px): further shrink buttons ── */
         @media (max-width: 320px) {
           .hero-btn-paste {
-            min-width: 68px;
-            padding: 0 10px;
-            font-size: 13px;
+            min-width: 56px;
+            padding: 0 6px;
+            font-size: 11px;
+            height: 40px;
+          }
+
+          .hero-btn-generate {
+            min-height: 40px;
+            font-size: 11px;
+            padding: 0 8px;
+          }
+
+          .hero-action-row {
+            gap: 4px;
           }
         }
       `}</style>
