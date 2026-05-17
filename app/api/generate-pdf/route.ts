@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 import { validateChatGptShareUrl } from '../../../lib/validate-url';
 import { fetchChatPage } from '../../../lib/fetch-chat';
 import { parseChatHtml } from '../../../lib/parse-chat';
@@ -28,14 +30,14 @@ export async function POST(req: NextRequest) {
 
     if ('reason' in fetched) {
       console.error('PDF Generation Error: fetchChatPage failed', fetched.reason);
-      return new Response(JSON.stringify({ error: true, message: 'Failed to fetch shared page', detail: fetched.reason }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: true, message: 'PDF generation failed. Please try again.' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     const parsed = parseChatHtml(fetched.html);
     if (parsed.messages.length === 0) {
       console.error('PDF Generation Error: parseChatHtml returned 0 messages');
       return new Response(
-        JSON.stringify({ error: true, message: 'Failed to parse conversation messages from structured source' }),
+        JSON.stringify({ error: true, message: 'PDF generation failed. Please try again.' }),
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -67,6 +69,6 @@ export async function POST(req: NextRequest) {
     console.error('PDF Generation Error:', err);
     console.error('message:', err?.message);
     console.error('stack:', err?.stack);
-    return new Response(JSON.stringify({ error: true, message: err?.message ?? String(err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: true, message: 'PDF generation failed. Please try again.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }

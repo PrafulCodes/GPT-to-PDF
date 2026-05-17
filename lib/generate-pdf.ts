@@ -87,6 +87,7 @@ async function getLaunchOptions() {
 
   // Detect environment: prefer Vercel detection for production serverless
   const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+  const runtimeLabel = isVercel ? 'vercel' : 'local';
 
   if (cachedLaunchOptions && cachedLaunchOptions.serverless === isVercel) return cachedLaunchOptions.options;
 
@@ -121,6 +122,7 @@ async function getLaunchOptions() {
     // Try to use sparticuz's chromium when available in serverless (Vercel)
     const execPath = await sparticuz.executablePath();
     const execExists = !!execPath && typeof execPath === 'string' && fs.existsSync(execPath);
+    console.log('[Vercel PDF]', JSON.stringify({ environment: runtimeLabel, runtime: 'nodejs', executablePath: execPath || null, launchResult: execExists ? 'valid' : 'invalid' }));
     if (execExists) {
       // Use puppeteer-core with sparticuz executable
       launchOptions = {

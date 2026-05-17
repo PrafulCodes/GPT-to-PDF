@@ -82,8 +82,7 @@ export default function HeroInputCard() {
 
       const res = await req;
       if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        throw new Error(json?.error || 'Failed to generate PDF');
+        throw new Error('PDF generation failed. Please try again.');
       }
 
       setProgress('preparing');
@@ -100,7 +99,7 @@ export default function HeroInputCard() {
       setProgress('done');
       setTimeout(() => setProgress('idle'), 1200);
     } catch (err: any) {
-      setError(err?.message || 'An error occurred');
+      setError('PDF generation failed. Please try again.');
       setProgress('idle');
     } finally {
       stageTimers.forEach(clearTimeout);
