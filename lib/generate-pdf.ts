@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
-let sparticuz: any = null;
-let PuppeteerCore: any = null;
+import chromium from '@sparticuz/chromium';
+import puppeteerCore from 'puppeteer-core';
 import { ParsedConversation } from './parse-chat';
 
 export type PdfTiming = {
@@ -82,58 +82,35 @@ function buildHtml(conv: ParsedConversation) {
 }
 
 async function getLaunchOptions() {
-  // Defer loading runtime-only modules to avoid bundler/runtime issues
-  const req: any = eval('require');
-
   // Detect environment: prefer Vercel detection for production serverless
   const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
 
   if (cachedLaunchOptions && cachedLaunchOptions.serverless === isVercel) return cachedLaunchOptions.options;
-
-  // Load sparticuz only when we intend to use it (production/serverless)
-  if (isVercel && !sparticuz) {
-    try {
-      sparticuz = req('@sparticuz/chromium');
-    } catch (e) {
-      sparticuz = null;
-    }
-  }
-
-  // Load puppeteer-core when on Vercel to avoid shipping full Chromium bundle
-  if (isVercel && !PuppeteerCore) {
-    try {
-      PuppeteerCore = req('puppeteer-core');
-    } catch (e) {
-      PuppeteerCore = null;
-    }
-  }
 
   let launchOptions: any = {
     defaultViewport: { width: 900, height: 1120 },
     ignoreHTTPSErrors: true
   };
 
-  const fs = req('fs');
+  const fs = require('fs');
 
-  const isServerless = isVercel; // explicit naming
+  if (isVercel) {
+    const executablePath = await chromium.executablePath();
 
-  if (isServerless && sparticuz) {
-    // Try to use sparticuz's chromium when available in serverless (Vercel)
-    const execPath = await sparticuz.executablePath();
-    const execExists = !!execPath && typeof execPath === 'string' && fs.existsSync(execPath);
-    if (execExists) {
-      // Use puppeteer-core with sparticuz executable
-      launchOptions = {
-        ...launchOptions,
-        args: Array.isArray(sparticuz.args) ? sparticuz.args : [],
-        executablePath: execPath,
-        headless: 'new'
-      };
-    } else {
-      // sparticuz present but binary missing — fallback to puppeteer-core without executablePath
-      console.warn('[PDF] sparticuz executablePath invalid, falling back to puppeteer-core default');
-      launchOptions = { ...launchOptions, headless: 'new' };
+    if (!executablePath) {
+      throw new Error('Chromium executablePath missing');
     }
+
+    if (!fs.existsSync(executablePath)) {
+      throw new Error(`Chromium binary not found at path: ${executablePath}`);
+    }
+
+    launchOptions = {
+      ...launchOptions,
+      args: chromium.args,
+      executablePath,
+      headless: true
+    };
   } else {
     // Local development: prefer puppeteer's bundled Chromium (no executablePath)
     // Probe common local Chrome installs if present, but do not require them.
@@ -158,10 +135,10 @@ async function getLaunchOptions() {
 
     if (found) {
       // Use system Chrome if available (local)
-      launchOptions = { ...launchOptions, executablePath: found, headless: 'new' };
+      launchOptions = { ...launchOptions, executablePath: found, headless: true };
     } else {
       // Use bundled Chromium shipped with puppeteer
-      launchOptions = { ...launchOptions, headless: 'new' };
+      launchOptions = { ...launchOptions, headless: true };
     }
   }
 
@@ -169,15 +146,16 @@ async function getLaunchOptions() {
   return launchOptions;
 }
 
+
 async function getSharedBrowser(): Promise<Browser> {
   if (!sharedBrowserPromise) {
     sharedBrowserPromise = (async () => {
       const launchOptions = await getLaunchOptions();
 
-      let browser: Browser;
-      if (Boolean(process.env.VERCEL || process.env.VERCEL_URL) && PuppeteerCore) {
+      let browser: any;
+      if (Boolean(process.env.VERCEL || process.env.VERCEL_URL)) {
         // Use puppeteer-core in serverless environments
-        browser = await PuppeteerCore.launch(launchOptions as any);
+        browser = await puppeteerCore.launch(launchOptions as any);
       } else {
         // Local development: use full puppeteer (bundled Chromium)
         browser = await puppeteer.launch(launchOptions as any);
