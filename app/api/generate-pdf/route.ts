@@ -16,17 +16,26 @@ export async function POST(req: NextRequest) {
     if ('reason' in valid) {
       return new Response(JSON.stringify({ error: valid.reason }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prewarmBrowser } = require('../../../lib/generate-pdf');
+      prewarmBrowser();
+    } catch (e) {
+      // ignore
+    }
 
     const fetched = await fetchChatPage(valid.url, 12000);
 
     if ('reason' in fetched) {
-      return new Response(JSON.stringify({ error: 'Failed to fetch shared page', detail: fetched.reason }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      console.error('PDF Generation Error: fetchChatPage failed', fetched.reason);
+      return new Response(JSON.stringify({ error: true, message: 'Failed to fetch shared page', detail: fetched.reason }), { status: 502, headers: { 'Content-Type': 'application/json' } });
     }
 
     const parsed = parseChatHtml(fetched.html);
     if (parsed.messages.length === 0) {
+      console.error('PDF Generation Error: parseChatHtml returned 0 messages');
       return new Response(
-        JSON.stringify({ error: 'Failed to parse conversation messages from structured source' }),
+        JSON.stringify({ error: true, message: 'Failed to parse conversation messages from structured source' }),
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -34,12 +43,14 @@ export async function POST(req: NextRequest) {
     const pdfResult = await generatePdf(parsed, 30000);
 
     if ('reason' in pdfResult) {
-      return new Response(JSON.stringify({ error: 'PDF generation failed', detail: pdfResult.reason }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      console.error('PDF Generation Error:', pdfResult.reason);
+      return new Response(JSON.stringify({ error: true, message: 'PDF generation failed. Please try again.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     try {
       await incrementPdfGeneratedCount();
-    } catch {
+    } catch (e) {
+      console.error('PDF Generation Error: incrementPdfGeneratedCount failed', e);
     }
 
     const fileName = `gpt-conversation-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
@@ -53,6 +64,9 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: 'Internal server error', detail: String(err?.message ?? err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('PDF Generation Error:', err);
+    console.error('message:', err?.message);
+    console.error('stack:', err?.stack);
+    return new Response(JSON.stringify({ error: true, message: err?.message ?? String(err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }

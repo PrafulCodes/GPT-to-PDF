@@ -1,14 +1,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
 let sparticuz: any = null;
-try {
-  // Load @sparticuz/chromium dynamically without letting webpack statically analyze it
-  // eslint-disable-next-line no-eval
-  const req: any = eval('require');
-  sparticuz = req('@sparticuz/chromium');
-} catch (e) {
-  sparticuz = null;
-}
+let PuppeteerCore: any = null;
 import { ParsedConversation } from './parse-chat';
 
 export type PdfTiming = {
@@ -26,7 +19,7 @@ const defaultTiming = (): PdfTiming => ({
 });
 
 let sharedBrowserPromise: Promise<Browser> | null = null;
-let cachedLaunchOptions: any | null = null;
+let cachedLaunchOptions: { options: any; serverless: boolean } | null = null;
 
 function escapeHtml(input: string): string {
   if (!input) return '';
@@ -42,134 +35,108 @@ function buildHtml(conv: ParsedConversation) {
   const messagesHtml = conv.messages
     .map((m) => {
       const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
-      return `<section class="${cls}"><div class="header">${m.role.toUpperCase()}</div><div class="body">${m.html}</div></section>`;
+      // Strip images and SVG to avoid large render artifacts in PDF and speed rendering
+      const bodyHtml = (m.html || '').replace(/<img[\s\S]*?>/gi, '').replace(/<svg[\s\S]*?<\/svg>/gi, '');
+      return `<section class="${cls}"><div class="header">${m.role.toUpperCase()}</div><div class="body">${bodyHtml}</div></section>`;
     })
     .join('\n');
 
+  // Minimal, performance-optimized HTML for PDF rendering:
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ChatGPT Conversation Export</title>
+  <title>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</title>
   <style>
-    :root{
-      --bg: #ffffff;
-      --text: #0f172a;
-      --muted: #6b7280;
-      --edge: #e6eef8;
-    }
-
-    html,body{height:100%}
-    body{
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      color:var(--text);
-      background:var(--bg);
-      margin:0;
-      padding:22px;
-      -webkit-font-smoothing:antialiased;
-    }
-
-    .container{max-width:900px;margin:0 auto}
-
-    header.doc{
-      padding:18px 0 8px;
-      margin-bottom:18px;
-    }
-    .title{font-size:28px;font-weight:700;line-height:1.1;margin:0;color:var(--text)}
-    .submeta{display:flex;gap:12px;align-items:center;margin-top:8px;color:var(--muted);font-size:12px}
-    .divider{height:1px;background:linear-gradient(90deg, transparent, var(--edge), transparent);margin:18px 0;border-radius:2px}
-
-    .msg{
-      border-radius:10px;
-      padding:14px;
-      margin-bottom:16px;
-      box-shadow:0 6px 18px rgba(12,20,36,0.06);
-      border:1px solid rgba(12,20,36,0.04);
-      background:linear-gradient(180deg, #fff, #fbfdff);
-      break-inside:avoid;
-      page-break-inside:avoid;
-      -webkit-column-break-inside: avoid;
-      -webkit-page-break-inside: avoid;
-    }
-
-    .msg.user{background:linear-gradient(180deg,#fbfdff,#f8fcff);border-left:6px solid rgba(37,99,235,0.12)}
-    .msg.assistant{background:linear-gradient(180deg,#ffffff,#fbfdff);border-left:6px solid rgba(15,23,42,0.03)}
-
-    .msg .header{font-weight:600;font-size:12px;color:var(--text);margin-bottom:8px;letter-spacing:0.6px}
-    .msg .body{font-size:14px;line-height:1.58;color:var(--text)}
-
-    .msg .body p{margin:0 0 12px}
-    .msg .body h1, .msg .body h2, .msg .body h3{margin:12px 0;font-weight:700}
-    .msg .body h1{font-size:20px}
-    .msg .body h2{font-size:18px}
-    .msg .body h3{font-size:16px}
-    .msg .body ul, .msg .body ol{padding-left:20px;margin:0 0 12px}
-    .msg .body blockquote{border-left:4px solid var(--edge);padding-left:12px;color:var(--muted);margin:0 0 12px;background:rgba(15,23,42,0.02);border-radius:6px;padding:10px}
-
-    pre{background:#0f1724;color:#e6eef8;padding:14px;border-radius:8px;overflow:auto;font-size:12px;line-height:1.45;margin:0 0 12px}
-    pre, code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace}
-    code{background:rgba(12,20,36,0.03);padding:2px 6px;border-radius:6px}
-    pre{page-break-inside:avoid;break-inside:avoid}
-
-    table{border-collapse:collapse;width:100%;margin:8px 0 12px}
-    table th{background:#f8fafc;padding:10px;text-align:left;border-bottom:1px solid var(--edge);font-weight:600}
-    table td{padding:10px;border-bottom:1px solid #eef2f7}
-
-    footer.pdf-foot{position:fixed;left:0;right:0;bottom:12mm;text-align:center;font-size:11px;color:var(--muted);opacity:0.6}
-    footer.pdf-foot a{color:var(--muted);text-decoration:none;border-bottom:1px dotted rgba(107,114,128,0.25)}
-
-    @media (max-width:420px){
-      body{padding:12px}
-      .container{padding:0}
-      .title{font-size:20px}
-      .msg{padding:12px}
-      pre{font-size:11px}
-    }
-
+    /* Minimal reset and system font stack to avoid external font loading */
+    html,body{margin:0;padding:18px;color:#0b1220;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;font-size:13px}
+    .container{max-width:800px;margin:0 auto}
+    header{margin-bottom:12px}
+    .title{font-weight:700;font-size:18px;margin:0 0 6px}
+    .meta{font-size:11px;color:#6b7280;margin-bottom:8px}
+    .msg{padding:10px;margin-bottom:10px;border-left:4px solid #e5e7eb}
+    .msg.user{border-left-color:#c7e0ff}
+    .msg .header{font-weight:600;font-size:11px;margin-bottom:6px}
+    .msg .body{font-size:13px;line-height:1.5;color:#0b1220}
+    pre{background:#0b1220;color:#e6eef8;padding:8px;border-radius:6px;overflow:auto;font-size:12px}
+    table{border-collapse:collapse;width:100%}
+    table th, table td{padding:8px;border-bottom:1px solid #eef2f7;font-size:13px}
+    footer{font-size:11px;color:#6b7280;margin-top:12px;text-align:center}
     @page{size:A4;margin:18mm}
   </style>
 </head>
 <body>
   <div class="container">
-    <header class="doc">
+    <header>
       <div class="title">${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</div>
-      <div class="submeta">
-        <div>Generated on: ${new Date().toLocaleString()}</div>
-        <div>•</div>
-        <div>Source: Shared ChatGPT link</div>
-      </div>
-      <div class="divider" aria-hidden="true"></div>
+      <div class="meta">Generated: ${new Date().toISOString()} • Source: Shared ChatGPT link</div>
     </header>
-
     <main>
       ${messagesHtml}
     </main>
+    <footer>GPT to PDF — Made by Praful Mohite</footer>
   </div>
-
-  <footer class="pdf-foot">GPT to PDF — Made by <a href="https://www.linkedin.com/in/praful-mohite" target="_blank" rel="noopener">Praful Mohite</a></footer>
 </body>
 </html>`;
 }
 
 async function getLaunchOptions() {
-  if (cachedLaunchOptions) return cachedLaunchOptions;
+  // Defer loading runtime-only modules to avoid bundler/runtime issues
+  const req: any = eval('require');
+
+  // Detect environment: prefer Vercel detection for production serverless
+  const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+
+  if (cachedLaunchOptions && cachedLaunchOptions.serverless === isVercel) return cachedLaunchOptions.options;
+
+  // Load sparticuz only when we intend to use it (production/serverless)
+  if (isVercel && !sparticuz) {
+    try {
+      sparticuz = req('@sparticuz/chromium');
+    } catch (e) {
+      sparticuz = null;
+    }
+  }
+
+  // Load puppeteer-core when on Vercel to avoid shipping full Chromium bundle
+  if (isVercel && !PuppeteerCore) {
+    try {
+      PuppeteerCore = req('puppeteer-core');
+    } catch (e) {
+      PuppeteerCore = null;
+    }
+  }
 
   let launchOptions: any = {
     defaultViewport: { width: 900, height: 1120 },
     ignoreHTTPSErrors: true
   };
 
-  if (sparticuz) {
+  const fs = req('fs');
+
+  const isServerless = isVercel; // explicit naming
+
+  if (isServerless && sparticuz) {
+    // Try to use sparticuz's chromium when available in serverless (Vercel)
     const execPath = await sparticuz.executablePath();
-    launchOptions = {
-      ...launchOptions,
-      args: sparticuz.args,
-      executablePath: execPath,
-      headless: sparticuz.headless
-    };
+    const execExists = !!execPath && typeof execPath === 'string' && fs.existsSync(execPath);
+    if (execExists) {
+      // Use puppeteer-core with sparticuz executable
+      launchOptions = {
+        ...launchOptions,
+        args: Array.isArray(sparticuz.args) ? sparticuz.args : [],
+        executablePath: execPath,
+        headless: 'new'
+      };
+    } else {
+      // sparticuz present but binary missing — fallback to puppeteer-core without executablePath
+      console.warn('[PDF] sparticuz executablePath invalid, falling back to puppeteer-core default');
+      launchOptions = { ...launchOptions, headless: 'new' };
+    }
   } else {
-    const fs = require('fs');
+    // Local development: prefer puppeteer's bundled Chromium (no executablePath)
+    // Probe common local Chrome installs if present, but do not require them.
     const possible = [
       process.env.CHROME_PATH,
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -190,21 +157,32 @@ async function getLaunchOptions() {
     }
 
     if (found) {
-      launchOptions = { ...launchOptions, executablePath: found, headless: true };
+      // Use system Chrome if available (local)
+      launchOptions = { ...launchOptions, executablePath: found, headless: 'new' };
     } else {
-      launchOptions = { ...launchOptions, headless: true };
+      // Use bundled Chromium shipped with puppeteer
+      launchOptions = { ...launchOptions, headless: 'new' };
     }
   }
 
-  cachedLaunchOptions = launchOptions;
-  return cachedLaunchOptions;
+  cachedLaunchOptions = { options: launchOptions, serverless: isVercel };
+  return launchOptions;
 }
 
 async function getSharedBrowser(): Promise<Browser> {
   if (!sharedBrowserPromise) {
     sharedBrowserPromise = (async () => {
       const launchOptions = await getLaunchOptions();
-      const browser = await puppeteer.launch(launchOptions);
+
+      let browser: Browser;
+      if (Boolean(process.env.VERCEL || process.env.VERCEL_URL) && PuppeteerCore) {
+        // Use puppeteer-core in serverless environments
+        browser = await PuppeteerCore.launch(launchOptions as any);
+      } else {
+        // Local development: use full puppeteer (bundled Chromium)
+        browser = await puppeteer.launch(launchOptions as any);
+      }
+
       browser.on('disconnected', () => {
         sharedBrowserPromise = null;
       });
@@ -217,6 +195,19 @@ async function getSharedBrowser(): Promise<Browser> {
   } catch (error) {
     sharedBrowserPromise = null;
     throw error;
+  }
+}
+
+// Expose a helper to pre-warm the shared browser (launch in background)
+export function prewarmBrowser() {
+  // Kick off the sharedBrowserPromise but don't await it here
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const p = getSharedBrowser();
+    // intentionally not awaited
+    return p;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -249,11 +240,20 @@ export async function generatePdf(
     });
     timing.pageRenderMs = Date.now() - renderStart;
 
+    // Measure font readiness without blocking long
+    try {
+      await page.evaluate(() => (document as any).fonts ? (document as any).fonts.ready : Promise.resolve());
+    } catch (e) {
+      // ignore
+    }
+
     const pdfStart = Date.now();
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '18mm', bottom: '18mm', left: '12mm', right: '12mm' }
+      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' },
+      scale: 0.95,
+      preferCSSPageSize: false
     });
     timing.pdfGenerateMs = Date.now() - pdfStart;
 
