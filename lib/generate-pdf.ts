@@ -36,18 +36,22 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function getFaviconDataUrl() {
+// Load once at module init (sync, small file) so both buildHtml and generatePdf share it.
+let _faviconDataUrl: string | null = null;
+function getFaviconDataUrl(): string {
+  if (_faviconDataUrl !== null) return _faviconDataUrl;
   try {
     const filePath = path.join(process.cwd(), 'public', 'favicon.png');
     const icon = fs.readFileSync(filePath);
-    return `data:image/png;base64,${icon.toString('base64')}`;
+    _faviconDataUrl = `data:image/png;base64,${icon.toString('base64')}`;
   } catch {
-    return '';
+    _faviconDataUrl = '';
   }
+  return _faviconDataUrl;
 }
 
 function buildHtml(conv: ParsedConversation) {
-  const faviconDataUrl = getFaviconDataUrl();
+  // faviconDataUrl no longer embedded in body — it's used in the PDF footerTemplate instead.
   const messagesHtml = conv.messages
     .map((m) => {
       const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
@@ -58,6 +62,9 @@ function buildHtml(conv: ParsedConversation) {
     .join('\n');
 
   // Minimal, performance-optimized HTML for PDF rendering:
+  // NOTE: The pdf-footer is intentionally removed from HTML — branding is
+  // injected via Puppeteer's footerTemplate which renders inside the @page
+  // bottom margin. This guarantees zero content overlap on every page.
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -66,8 +73,9 @@ function buildHtml(conv: ParsedConversation) {
   <title>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</title>
   <style>
     /* Minimal reset and system font stack to avoid external font loading */
-    html,body{margin:0;padding:18px 18px 44px;color:#0b1220;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{margin:0;padding:14px 18px 18px;color:#0b1220;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     a{color:inherit;text-decoration:none}
+    /* Content container — max-width with auto side margins */
     .container{max-width:800px;margin:0 auto}
     header{margin-bottom:12px}
     .title{font-weight:700;font-size:18px;margin:0 0 6px}
@@ -79,25 +87,13 @@ function buildHtml(conv: ParsedConversation) {
     pre{background:#0b1220;color:#e6eef8;padding:8px;border-radius:6px;overflow:auto;font-size:12px}
     table{border-collapse:collapse;width:100%}
     table th, table td{padding:8px;border-bottom:1px solid #eef2f7;font-size:13px}
-    .pdf-footer{position:fixed;left:18mm;right:18mm;bottom:10mm;display:flex;justify-content:center;z-index:2;pointer-events:none}
-    .pdf-footer-card{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #d9e2ef;border-radius:999px;background:rgba(255,255,255,.96);box-shadow:0 8px 22px rgba(15,23,42,.08);backdrop-filter:blur(8px);pointer-events:auto}
-    .pdf-footer-label{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#64748b}
-    .pdf-footer-link{font-size:11px;font-weight:700;color:#0f172a}
-    .pdf-footer-divider{color:#cbd5e1}
-    .brand-watermark{position:fixed;top:16mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.12;pointer-events:none}
-    .brand-watermark img{width:30px;height:30px;border-radius:8px}
-    .brand-watermark span{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#0b1220}
-    .page-mark{position:fixed;bottom:24mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.22;pointer-events:none}
-    .page-mark img{width:18px;height:18px;border-radius:4px}
-    .page-mark span{font-size:10px;color:#6b7280}
-    @page{size:A4;margin:18mm}
+    /* NOTE: No @page rule here — margins are controlled exclusively by Puppeteer's
+       page.pdf() options so there is a single authoritative source of truth.
+       The bottom margin is sized to exactly hold the footerTemplate height,
+       guaranteeing content can never collide with the footer. */
   </style>
 </head>
 <body>
-  <div class="brand-watermark">
-    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
-    <span>GPT to PDF</span>
-  </div>
   <div class="container">
     <header>
       <div class="title">${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</div>
@@ -106,18 +102,6 @@ function buildHtml(conv: ParsedConversation) {
     <main>
       ${messagesHtml}
     </main>
-    <footer class="pdf-footer" aria-label="PDF branding">
-      <div class="pdf-footer-card">
-        <span class="pdf-footer-label">Made by</span>
-        <a class="pdf-footer-link" href="${creatorUrl}">${escapeHtml(creatorName)}</a>
-        <span class="pdf-footer-divider" aria-hidden="true">•</span>
-        <a class="pdf-footer-link" href="${siteUrl}">${escapeHtml(siteHost)}</a>
-      </div>
-    </footer>
-  </div>
-  <div class="page-mark">
-    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
-    <span>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</span>
   </div>
 </body>
 </html>`;
@@ -246,6 +230,8 @@ export async function generatePdf(
 
   try {
     const htmlStart = Date.now();
+    // Resolve favicon once (cached after first call) so footerTemplate can embed it.
+    const faviconDataUrl = getFaviconDataUrl();
     const html = buildHtml(conv);
     timing.htmlGenerationMs = Date.now() - htmlStart;
 
@@ -270,12 +256,55 @@ export async function generatePdf(
     }
 
     const pdfStart = Date.now();
+
+    // Footer template: rendered inside the reserved margin-bottom zone by Chromium.
+    // Because Chromium physically reserves the bottom margin for this template,
+    // content is GUARANTEED to stop before the footer — no z-index tricks needed.
+    // The favicon is embedded as a data-URL so no external fetch is required.
+    const footerFaviconTag = faviconDataUrl
+      ? `<img src="${faviconDataUrl}" style="width:14px;height:14px;border-radius:3px;opacity:0.55;flex-shrink:0" alt="" />`
+      : '';
+
+    // IMPORTANT: footerTemplate MUST use inline styles only (no class names).
+    // The -webkit-print-color-adjust and font-size on the wrapper are required
+    // for Chromium to render footer content correctly.
+    const footerTemplate = `
+      <div style="
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10mm;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 9px;
+        color: rgba(11,18,32,0.42);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border-top: 0.5px solid rgba(11,18,32,0.10);
+        padding-top: 5px;
+      ">
+        <span style="display:inline-flex;align-items:center;gap:5px;">
+          ${footerFaviconTag}
+          <span style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">GPT to PDF</span>
+        </span>
+        <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+      </div>
+    `;
+
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' },
+      // top/left/right margins: content breathing room.
+      // bottom: sized to hold the footerTemplate (≈12mm) + 5px spacing above it.
+      // This is the ONLY margin declaration — the HTML has no @page rule.
+      margin: { top: '14mm', bottom: '14mm', left: '10mm', right: '10mm' },
       scale: 0.95,
-      preferCSSPageSize: false
+      preferCSSPageSize: false,
+      displayHeaderFooter: true,
+      // Header is empty — we only need the footer.
+      headerTemplate: '<span></span>',
+      footerTemplate
     });
     timing.pdfGenerateMs = Date.now() - pdfStart;
 

@@ -426,6 +426,15 @@ export default function HeroInputCard() {
             width: auto;
           }
         }
+
+        /* ── Smallest phones (max 320px): shrink Paste button so Generate stays readable ── */
+        @media (max-width: 320px) {
+          .hero-btn-paste {
+            min-width: 68px;
+            padding: 0 10px;
+            font-size: 13px;
+          }
+        }
       `}</style>
     </div>
   );

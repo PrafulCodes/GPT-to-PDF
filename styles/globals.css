@@ -84,6 +84,10 @@
 }
 
 html, body { height: 100%; }
+html {
+  /* Prevent x-axis overflow/scroll on any mobile viewport */
+  overflow-x: hidden;
+}
 body {
   background: var(--color-bg);
   color: var(--color-text-primary);
@@ -94,6 +98,7 @@ body {
   padding: 0;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 /* ─────────────────────────────
@@ -103,6 +108,9 @@ body {
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 0 20px;
+  /* Prevent any child with fixed width from causing x-scroll */
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* ─────────────────────────────
@@ -210,6 +218,11 @@ body {
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  /* Prevent badge from overflowing its container on small screens */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────
@@ -349,7 +362,9 @@ body {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--color-text-primary);
-  white-space: nowrap;
+  /* Allow wrapping on very narrow screens instead of overflowing */
+  white-space: normal;
+  flex-wrap: wrap;
 }
 .footer-proof-count {
   font-family: var(--font-mono);
@@ -485,4 +500,26 @@ body {
 
   .site-container { padding: 0 14px; }
   .card { padding: var(--space-4); border-radius: var(--radius-md); }
+}
+
+/* ─── Smallest phones (max 320px) ─── */
+@media (max-width: 320px) {
+  :root {
+    --text-2xl: 22px;
+    --text-xl:  18px;
+    --text-lg:  16px;
+    --text-base: 14px;
+    --text-sm:  12px;
+  }
+
+  .site-container { padding: 0 12px; }
+
+  /* Avoid trust-strip wrapping into a column on 320px */
+  .trust-row {
+    gap: var(--space-2);
+    justify-content: flex-start;
+  }
+  .trust-item {
+    font-size: 10px;
+  }
 }
