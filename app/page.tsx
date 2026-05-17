@@ -7,6 +7,8 @@ import FAQ from '../components/FAQ';
 import { FAQ_ITEMS } from '../lib/seo';
 import Footer from '../components/Footer';
 
+const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+
 export default function Page() {
   const seoContent = `Save time and keep your conversations organized. No extension needed — simply paste a public ChatGPT share link and download a clean PDF that preserves headings, lists, code blocks, and tables. This mobile-friendly converter works in any browser and requires no signup or account.`;
 
@@ -14,7 +16,7 @@ export default function Page() {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'GPT to PDF',
-    url: 'https://your-domain.com/',
+    url: siteUrl,
     description:
       'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.'
   };
@@ -23,7 +25,7 @@ export default function Page() {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'GPT to PDF',
-    url: 'https://your-domain.com/',
+    url: siteUrl,
     description:
       'Convert ChatGPT shared links into clean downloadable PDFs without installing anything. Mobile-friendly and free to use.',
     applicationCategory: 'Tools',

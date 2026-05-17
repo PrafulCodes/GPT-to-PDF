@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { parseContentDispositionFileName } from '../lib/pdf-filename';
 
 type ProgressStage = 'idle' | 'fetching' | 'formatting' | 'generating' | 'preparing' | 'done';
 
@@ -90,7 +91,7 @@ export default function HeroInputCard() {
       const blob = await res.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'conversation.pdf';
+      link.download = parseContentDispositionFileName(res.headers.get('content-disposition')) || 'conversation.pdf';
       document.body.appendChild(link);
       link.click();
       link.remove();

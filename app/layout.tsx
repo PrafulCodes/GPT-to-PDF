@@ -2,8 +2,11 @@ import './globals.css';
 import React from 'react';
 import type { Metadata } from 'next';
 
+const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'Convert ChatGPT Shared Links to PDF — Free, No Login',
+  metadataBase: new URL(siteUrl),
+  title: 'GPT to PDF',
   description:
     'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.',
   keywords: [
@@ -18,11 +21,11 @@ export const metadata: Metadata = {
     title: 'Convert ChatGPT Shared Links to PDF — Free, No Login',
     description:
       'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.',
-    url: 'https://your-domain.com/',
+    url: siteUrl,
     siteName: 'GPT to PDF',
     images: [
       {
-        url: 'https://your-domain.com/og-image.png',
+        url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
         alt: 'ChatGPT to PDF preview'
@@ -36,6 +39,11 @@ export const metadata: Metadata = {
     description:
       'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.'
   },
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg'
+  },
   robots: {
     index: true,
     follow: true,
@@ -48,7 +56,7 @@ export const metadata: Metadata = {
     }
   },
   other: {
-    canonical: 'https://your-domain.com/'
+    canonical: siteUrl
   }
 };
 

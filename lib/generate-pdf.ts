@@ -2,6 +2,8 @@ import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
 import chromium from '@sparticuz/chromium';
 import puppeteerCore from 'puppeteer-core';
+import fs from 'fs';
+import path from 'path';
 import { ParsedConversation } from './parse-chat';
 
 export type PdfTiming = {
@@ -31,7 +33,18 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function getFaviconDataUrl() {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'favicon.png');
+    const icon = fs.readFileSync(filePath);
+    return `data:image/png;base64,${icon.toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+
 function buildHtml(conv: ParsedConversation) {
+  const faviconDataUrl = getFaviconDataUrl();
   const messagesHtml = conv.messages
     .map((m) => {
       const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
@@ -63,10 +76,20 @@ function buildHtml(conv: ParsedConversation) {
     table{border-collapse:collapse;width:100%}
     table th, table td{padding:8px;border-bottom:1px solid #eef2f7;font-size:13px}
     footer{font-size:11px;color:#6b7280;margin-top:12px;text-align:center}
+    .brand-watermark{position:fixed;top:16mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.12;pointer-events:none}
+    .brand-watermark img{width:30px;height:30px;border-radius:8px}
+    .brand-watermark span{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#0b1220}
+    .page-mark{position:fixed;bottom:14mm;right:12mm;display:flex;align-items:center;gap:8px;opacity:.22;pointer-events:none}
+    .page-mark img{width:18px;height:18px;border-radius:4px}
+    .page-mark span{font-size:10px;color:#6b7280}
     @page{size:A4;margin:18mm}
   </style>
 </head>
 <body>
+  <div class="brand-watermark">
+    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
+    <span>GPT to PDF</span>
+  </div>
   <div class="container">
     <header>
       <div class="title">${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</div>
@@ -76,6 +99,10 @@ function buildHtml(conv: ParsedConversation) {
       ${messagesHtml}
     </main>
     <footer>GPT to PDF — Made by Praful Mohite</footer>
+  </div>
+  <div class="page-mark">
+    ${faviconDataUrl ? `<img src="${faviconDataUrl}" alt="" aria-hidden="true" />` : ''}
+    <span>${escapeHtml(conv.title || 'ChatGPT Conversation Export')}</span>
   </div>
 </body>
 </html>`;

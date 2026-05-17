@@ -8,6 +8,7 @@ import { fetchChatPage } from '../../../lib/fetch-chat';
 import { parseChatHtml } from '../../../lib/parse-chat';
 import { generatePdf } from '../../../lib/generate-pdf';
 import { incrementPdfGeneratedCount } from '../../../lib/pdf-stats';
+import { createPdfFileName } from '../../../lib/pdf-filename';
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       console.error('PDF Generation Error: incrementPdfGeneratedCount failed', e);
     }
 
-    const fileName = `gpt-conversation-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`;
+    const fileName = createPdfFileName(parsed.title);
 
     return new Response(new Uint8Array(pdfResult.buffer), {
       status: 200,
