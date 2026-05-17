@@ -1,10 +1,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
-// These are declared at module level so nft (node-file-trace) can detect them
-// and include them in the Vercel serverless function output package.
-// DO NOT use eval('require') — that hides imports from the tracer.
-let sparticuz: any = null;
-let PuppeteerCore: any = null;
+import chromium from '@sparticuz/chromium';
+import puppeteerCore from 'puppeteer-core';
 import { ParsedConversation } from './parse-chat';
 
 export type PdfTiming = {
@@ -98,11 +95,6 @@ async function getLaunchOptions() {
   const fs = require('fs');
 
   if (isVercel) {
-    // Use direct require() so Vercel's node-file-trace can detect these modules
-    // and include them in the serverless function package at build time.
-    const chromium = require('@sparticuz/chromium');
-    const puppeteerCore = require('puppeteer-core');
-
     const executablePath = await chromium.executablePath();
 
     if (!executablePath) {
@@ -112,9 +104,6 @@ async function getLaunchOptions() {
     if (!fs.existsSync(executablePath)) {
       throw new Error(`Chromium binary not found at path: ${executablePath}`);
     }
-
-    sparticuz = chromium;
-    PuppeteerCore = puppeteerCore;
 
     launchOptions = {
       ...launchOptions,
@@ -163,10 +152,10 @@ async function getSharedBrowser(): Promise<Browser> {
     sharedBrowserPromise = (async () => {
       const launchOptions = await getLaunchOptions();
 
-      let browser: Browser;
+      let browser: any;
       if (Boolean(process.env.VERCEL || process.env.VERCEL_URL)) {
         // Use puppeteer-core in serverless environments
-        browser = await PuppeteerCore.launch(launchOptions as any);
+        browser = await puppeteerCore.launch(launchOptions as any);
       } else {
         // Local development: use full puppeteer (bundled Chromium)
         browser = await puppeteer.launch(launchOptions as any);
