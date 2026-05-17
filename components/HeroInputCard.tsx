@@ -227,24 +227,26 @@ export default function HeroInputCard() {
           width: 100%;
         }
 
-        .hero-input-field {
-          width: 100%;
-        }
-
+        /* Mobile: buttons stack vertically by default */
         .hero-action-row {
           display: flex;
+          flex-direction: column;
           gap: 8px;
           width: 100%;
         }
 
         .hero-btn-paste {
-          flex: 0 0 auto;
-          min-width: 88px;
+          width: 100%;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-width: 0;
         }
 
         .hero-btn-generate {
+          width: 100%;
           flex: 1 1 auto;
           justify-content: center;
+          min-width: 0;
         }
 
         .input-url {
@@ -431,28 +433,35 @@ export default function HeroInputCard() {
           to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* ── Desktop: side-by-side input + buttons ── */
+        /* ── Desktop (641px+): side-by-side layout ── */
         @media (min-width: 641px) {
           .hero-input-row {
             flex-direction: row;
             align-items: center;
+            gap: 8px;
           }
 
           .hero-input-field {
             flex: 1 1 auto;
             min-width: 0;
-          }
-
-          .hero-action-row {
-            flex: 0 0 auto;
             width: auto;
           }
 
+          .hero-action-row {
+            flex-direction: row;
+            flex: 0 0 auto;
+            width: auto;
+            gap: 8px;
+          }
+
           .hero-btn-paste {
+            width: auto;
             min-width: 80px;
+            flex: 0 0 auto;
           }
 
           .hero-btn-generate {
+            width: auto;
             flex: 0 0 auto;
             min-width: 148px;
           }
@@ -463,43 +472,49 @@ export default function HeroInputCard() {
           }
         }
 
-        /* ── Smallest phones (max 414px): optimize button sizing and padding ── */
+        /* ── Small phones (414px): optimize button height and spacing ── */
         @media (max-width: 414px) {
           .hero-btn-paste {
-            min-width: 64px;
-            padding: 0 8px;
-            font-size: 12px;
+            width: 100%;
+            min-width: 0;
             height: 44px;
+            font-size: 13px;
+            padding: 0 12px;
           }
 
           .hero-btn-generate {
-            min-height: 44px;
+            width: 100%;
+            min-width: 0;
+            height: 44px;
             font-size: 13px;
             padding: 0 12px;
           }
 
           .hero-action-row {
-            gap: 6px;
+            gap: 8px;
           }
         }
 
-        /* ── Smallest phones (max 320px): further shrink buttons ── */
+        /* ── Tiny phones (max 320px): full width stacked buttons ── */
         @media (max-width: 320px) {
           .hero-btn-paste {
-            min-width: 56px;
-            padding: 0 6px;
-            font-size: 11px;
+            width: 100%;
+            min-width: 0;
             height: 40px;
+            font-size: 12px;
+            padding: 0 10px;
           }
 
           .hero-btn-generate {
-            min-height: 40px;
-            font-size: 11px;
-            padding: 0 8px;
+            width: 100%;
+            min-width: 0;
+            height: 40px;
+            font-size: 12px;
+            padding: 0 10px;
           }
 
           .hero-action-row {
-            gap: 4px;
+            gap: 6px;
           }
         }
       `}</style>
