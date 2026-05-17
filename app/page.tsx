@@ -47,13 +47,20 @@ export default function Page() {
       <Navbar />
 
       <main>
-        <section id="hero" className="site-container" style={{paddingTop:'var(--space-16)',paddingBottom:'var(--space-10)',textAlign:'center'}}>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'var(--space-4)'}}>
+        {/* ── Hero ── */}
+        <section id="hero" className="site-container hero-section">
+          <div className="hero-inner">
             <div className="badge-eyebrow">Free · No signup · No extension</div>
-            <h1 style={{fontSize:'var(--text-2xl)',fontWeight:'var(--weight-medium)',letterSpacing:'-0.03em',maxWidth:540,margin:0}}>Export ChatGPT Conversations to PDF</h1>
-            <p style={{fontSize:'var(--text-base)',color:'var(--color-text-secondary)',maxWidth:460,margin:0}}>Paste a public ChatGPT share link. Get a clean, formatted PDF instantly.</p>
 
-            <div style={{width:'100%',maxWidth:'var(--max-width)',marginTop:'var(--space-6)'}}>
+            <h1 className="hero-headline">
+              Export ChatGPT Conversations to PDF
+            </h1>
+
+            <p className="hero-subtext">
+              Paste a public ChatGPT share link. Get a clean, formatted PDF instantly.
+            </p>
+
+            <div className="hero-card-wrap">
               <HeroInputCard />
             </div>
 
@@ -61,9 +68,10 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="seo" className="site-container" style={{paddingTop:'var(--space-6)',paddingBottom:'var(--space-6)'}}>
-          <h2 style={{fontSize:'var(--text-md)',fontWeight:'var(--weight-medium)'}}>Why use GPT to PDF?</h2>
-          <p style={{color:'var(--color-text-secondary)',marginTop:'var(--space-2)'}}>{seoContent}</p>
+        {/* ── Why use GPT to PDF ── */}
+        <section id="seo" className="site-container seo-section">
+          <h2 className="section-heading">Why use GPT to PDF?</h2>
+          <p className="seo-body">{seoContent}</p>
         </section>
 
         <HowItWorks />
@@ -78,6 +86,105 @@ export default function Page() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       </main>
+
+      <style>{`
+        /* Hero section */
+        .hero-section {
+          padding-top: var(--space-16);
+          padding-bottom: var(--space-6);
+          text-align: center;
+        }
+
+        .hero-inner {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--space-4);
+        }
+
+        .hero-headline {
+          font-size: var(--text-2xl);
+          font-weight: var(--weight-medium);
+          letter-spacing: -0.03em;
+          max-width: 540px;
+          margin: 0;
+          line-height: 1.2;
+          color: var(--color-text-primary);
+        }
+
+        .hero-subtext {
+          font-size: var(--text-base);
+          color: var(--color-text-secondary);
+          max-width: 420px;
+          margin: 0;
+          line-height: 1.6;
+        }
+
+        .hero-card-wrap {
+          width: 100%;
+          max-width: var(--max-width);
+          margin-top: var(--space-4);
+        }
+
+        /* SEO section */
+        .seo-section {
+          padding-top: var(--space-6);
+          padding-bottom: var(--space-6);
+        }
+
+        .section-heading {
+          font-size: var(--text-md);
+          font-weight: var(--weight-medium);
+          margin: 0 0 var(--space-2);
+        }
+
+        .seo-body {
+          color: var(--color-text-secondary);
+          font-size: var(--text-sm);
+          line-height: 1.7;
+          margin: 0;
+        }
+
+        /* Mobile overrides */
+        @media (max-width: 640px) {
+          .hero-section {
+            padding-top: var(--space-10);
+            padding-bottom: var(--space-4);
+            text-align: left;
+          }
+
+          .hero-inner {
+            align-items: flex-start;
+            gap: var(--space-3);
+          }
+
+          .hero-headline {
+            font-size: var(--text-2xl);
+            max-width: 100%;
+            line-height: 1.15;
+          }
+
+          .hero-subtext {
+            font-size: var(--text-sm);
+            max-width: 100%;
+          }
+
+          .hero-card-wrap {
+            margin-top: var(--space-3);
+          }
+
+          .seo-section {
+            padding-top: var(--space-4);
+            padding-bottom: var(--space-4);
+          }
+        }
+
+        @media (max-width: 390px) {
+          .hero-section {
+            padding-top: var(--space-8);
+          }
+        }
+      `}</style>
     </div>
   );
 }
