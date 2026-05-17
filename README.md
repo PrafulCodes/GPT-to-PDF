@@ -10,7 +10,7 @@ Badges: ![Vercel](https://img.shields.io/badge/deploy-vercel-000000?style=flat&l
 
 ## Live Demo
 
-- Demo: [Coming Soon]
+- Demo: https://gpt-to-pdf-six.vercel.app
 
 ---
 
@@ -197,7 +197,7 @@ This project is provided under the MIT License. See the `LICENSE` file for detai
 Created by Praful Mohite
 
 - GitHub: https://github.com/PrafulCodes
-- LinkedIn: [Coming Soon]
+- Website: https://gpt-to-pdf-six.vercel.app
 
 ---
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { creatorName, creatorUrl, siteHost, siteUrl } from '../lib/branding';
 
 export default function Footer() {
   const [count, setCount] = useState<number | null>(null);
@@ -54,7 +55,11 @@ export default function Footer() {
     <footer role="contentinfo" className="site-footer">
       <div className="site-container footer-shell">
         <div>
-          <div style={{fontFamily:'var(--font-mono)',fontWeight:varWeight('medium')}}>GPT to PDF</div>
+          <div style={{fontFamily:'var(--font-mono)',fontWeight:varWeight('medium')}}>
+            <a href={siteUrl} className="link" style={{color:'var(--color-text-primary)'}}>
+              GPT to PDF
+            </a>
+          </div>
           <div style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}}>Clean exports from your ChatGPT conversations</div>
         </div>
 
@@ -75,6 +80,16 @@ export default function Footer() {
             <a href="/#faq" style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}} className="link">FAQ</a>
           </nav>
         </div>
+      </div>
+
+      <div className="site-container" style={{marginTop:'10px',display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center',fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}}>
+        <a href={creatorUrl} className="link" style={{fontWeight:600,color:'var(--color-text-primary)'}}>
+          {creatorName}
+        </a>
+        <span aria-hidden="true">•</span>
+        <a href={siteUrl} className="link">
+          {siteHost}
+        </a>
       </div>
     </footer>
   );
