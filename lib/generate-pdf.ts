@@ -1,6 +1,8 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
-import chromium from '@sparticuz/chromium';
+// @sparticuz/chromium-min does NOT bundle the binary — it downloads it at runtime
+// from the URL passed to executablePath(). This keeps the function under Vercel's 50MB limit.
+import chromium from '@sparticuz/chromium-min';
 import puppeteerCore from 'puppeteer-core';
 import fs from 'fs';
 import path from 'path';
@@ -135,14 +137,16 @@ async function getLaunchOptions() {
   const fs = require('fs');
 
   if (isVercel) {
-    const executablePath = await chromium.executablePath();
+    // chromium-min requires a hosted binary URL.
+    // Set CHROMIUM_REMOTE_EXEC_PATH on Vercel to the GitHub releases tar URL for v133:
+    // https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar
+    const remoteUrl = process.env.CHROMIUM_REMOTE_EXEC_PATH ||
+      'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar';
+
+    const executablePath = await chromium.executablePath(remoteUrl);
 
     if (!executablePath) {
-      throw new Error('Chromium executablePath missing');
-    }
-
-    if (!fs.existsSync(executablePath)) {
-      throw new Error(`Chromium binary not found at path: ${executablePath}`);
+      throw new Error('Chromium executablePath missing — check CHROMIUM_REMOTE_EXEC_PATH env var');
     }
 
     launchOptions = {
