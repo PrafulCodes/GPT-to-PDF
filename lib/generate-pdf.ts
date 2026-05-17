@@ -1,14 +1,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, Page } from 'puppeteer';
 let sparticuz: any = null;
-try {
-  // Load @sparticuz/chromium dynamically without letting webpack statically analyze it
-  // eslint-disable-next-line no-eval
-  const req: any = eval('require');
-  sparticuz = req('@sparticuz/chromium');
-} catch (e) {
-  sparticuz = null;
-}
+let PuppeteerCore: any = null;
 import { ParsedConversation } from './parse-chat';
 
 export type PdfTiming = {
@@ -26,7 +19,7 @@ const defaultTiming = (): PdfTiming => ({
 });
 
 let sharedBrowserPromise: Promise<Browser> | null = null;
-let cachedLaunchOptions: any | null = null;
+let cachedLaunchOptions: { options: any; serverless: boolean } | null = null;
 
 function escapeHtml(input: string): string {
   if (!input) return '';
@@ -153,23 +146,61 @@ function buildHtml(conv: ParsedConversation) {
 }
 
 async function getLaunchOptions() {
-  if (cachedLaunchOptions) return cachedLaunchOptions;
+  // Defer loading runtime-only modules to avoid bundler/runtime issues
+  const req: any = eval('require');
+
+  // Detect environment: prefer Vercel detection for production serverless
+  const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+
+  if (cachedLaunchOptions && cachedLaunchOptions.serverless === isVercel) return cachedLaunchOptions.options;
+
+  // Load sparticuz only when we intend to use it (production/serverless)
+  if (isVercel && !sparticuz) {
+    try {
+      sparticuz = req('@sparticuz/chromium');
+    } catch (e) {
+      sparticuz = null;
+    }
+  }
+
+  // Load puppeteer-core when on Vercel to avoid shipping full Chromium bundle
+  if (isVercel && !PuppeteerCore) {
+    try {
+      PuppeteerCore = req('puppeteer-core');
+    } catch (e) {
+      PuppeteerCore = null;
+    }
+  }
 
   let launchOptions: any = {
     defaultViewport: { width: 900, height: 1120 },
     ignoreHTTPSErrors: true
   };
 
-  if (sparticuz) {
+  const fs = req('fs');
+
+  const isServerless = isVercel; // explicit naming
+
+  if (isServerless && sparticuz) {
+    // Try to use sparticuz's chromium when available in serverless (Vercel)
     const execPath = await sparticuz.executablePath();
-    launchOptions = {
-      ...launchOptions,
-      args: sparticuz.args,
-      executablePath: execPath,
-      headless: sparticuz.headless
-    };
+    const execExists = !!execPath && typeof execPath === 'string' && fs.existsSync(execPath);
+    if (execExists) {
+      // Use puppeteer-core with sparticuz executable
+      launchOptions = {
+        ...launchOptions,
+        args: Array.isArray(sparticuz.args) ? sparticuz.args : [],
+        executablePath: execPath,
+        headless: 'new'
+      };
+    } else {
+      // sparticuz present but binary missing — fallback to puppeteer-core without executablePath
+      console.warn('[PDF] sparticuz executablePath invalid, falling back to puppeteer-core default');
+      launchOptions = { ...launchOptions, headless: 'new' };
+    }
   } else {
-    const fs = require('fs');
+    // Local development: prefer puppeteer's bundled Chromium (no executablePath)
+    // Probe common local Chrome installs if present, but do not require them.
     const possible = [
       process.env.CHROME_PATH,
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -190,21 +221,37 @@ async function getLaunchOptions() {
     }
 
     if (found) {
-      launchOptions = { ...launchOptions, executablePath: found, headless: true };
+      // Use system Chrome if available (local)
+      launchOptions = { ...launchOptions, executablePath: found, headless: 'new' };
     } else {
-      launchOptions = { ...launchOptions, headless: true };
+      // Use bundled Chromium shipped with puppeteer
+      launchOptions = { ...launchOptions, headless: 'new' };
     }
   }
 
-  cachedLaunchOptions = launchOptions;
-  return cachedLaunchOptions;
+  cachedLaunchOptions = { options: launchOptions, serverless: isVercel };
+  return launchOptions;
 }
 
 async function getSharedBrowser(): Promise<Browser> {
   if (!sharedBrowserPromise) {
     sharedBrowserPromise = (async () => {
       const launchOptions = await getLaunchOptions();
-      const browser = await puppeteer.launch(launchOptions);
+      const usingServerless = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+      // Log chosen strategy
+      console.log('[PDF] Environment:', usingServerless ? 'vercel' : 'local');
+      console.log('[PDF] Launch strategy:', usingServerless ? 'puppeteer-core/@sparticuz' : 'puppeteer');
+      console.log('[PDF] Launch executable:', launchOptions.executablePath ? launchOptions.executablePath : 'bundled');
+
+      let browser: Browser;
+      if (usingServerless && PuppeteerCore) {
+        // Use puppeteer-core in serverless environments
+        browser = await PuppeteerCore.launch(launchOptions as any);
+      } else {
+        // Local development: use full puppeteer (bundled Chromium)
+        browser = await puppeteer.launch(launchOptions as any);
+      }
+
       browser.on('disconnected', () => {
         sharedBrowserPromise = null;
       });
@@ -234,27 +281,34 @@ export async function generatePdf(
   try {
     const htmlStart = Date.now();
     const html = buildHtml(conv);
+    console.log('generate-pdf: html generated, length:', html.length);
     timing.htmlGenerationMs = Date.now() - htmlStart;
 
     const launchStart = Date.now();
     const browser = await getSharedBrowser();
+    console.log('generate-pdf: browser acquired');
     timing.chromiumLaunchMs = Date.now() - launchStart;
 
     page = await browser.newPage();
+    console.log('generate-pdf: new page created');
 
     const renderStart = Date.now();
+    console.log('generate-pdf: setting page content');
     await page.setContent(html, {
       waitUntil: 'domcontentloaded',
       timeout: Math.max(10000, timeoutMs)
     });
+    console.log('generate-pdf: page content set');
     timing.pageRenderMs = Date.now() - renderStart;
 
     const pdfStart = Date.now();
+    console.log('generate-pdf: generating pdf');
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: { top: '18mm', bottom: '18mm', left: '12mm', right: '12mm' }
     });
+    console.log('generate-pdf: pdf generated, size:', pdf.length);
     timing.pdfGenerateMs = Date.now() - pdfStart;
 
     await page.close();
