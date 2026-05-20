@@ -10,6 +10,14 @@ export type ParsedConversation = {
   messages: Message[];
 };
 
+const JUNK_TEXT_PATTERNS = [
+  /original custom instructions no longer available/i,
+  /custom instructions no longer available/i,
+  /share chatgpt link/i,
+  /shared chatgpt link/i,
+  /^generated:\s*/i
+];
+
 function escapeHtml(input: string): string {
   return input
     .replace(/&/g, '&amp;')
@@ -20,9 +28,107 @@ function escapeHtml(input: string): string {
 }
 
 function textToSafeHtml(text: string): string {
-  const escaped = escapeHtml(text.trim());
-  const withBreaks = escaped.replace(/\r\n?/g, '\n').replace(/\n/g, '<br/>');
-  return `<p>${withBreaks}</p>`;
+  const normalized = normalizePlainText(text);
+  if (!normalized) return '';
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+}
+
+function normalizePlainText(text: string): string {
+  return text
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+    .replace(/(?:\n\s*){3,}/g, '\n\n')
+    .trim();
+}
+
+function containsJunkText(text: string): boolean {
+  const normalized = normalizePlainText(text);
+  if (!normalized) return false;
+  return JUNK_TEXT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function stripJunkFromHtml(html: string): string {
+  if (!html) return '';
+
+  const $ = load(`<div id="root">${html}</div>`, undefined, false);
+  const root = $('#root');
+
+  root.find('script, noscript, style, iframe, template, svg, canvas, meta, link').remove();
+  root.find('[hidden], [aria-hidden="true"], [data-hidden="true"]').remove();
+
+  root.find('*').each((_, element) => {
+    const node = $(element);
+    const text = normalizePlainText(node.text());
+
+    if (containsJunkText(text)) {
+      node.remove();
+      return;
+    }
+
+    if (!text && node.children().length === 0 && !/^(br|hr|img|table|thead|tbody|tr|td|th|pre|code)$/i.test((element as any).tagName || '')) {
+      node.remove();
+    }
+  });
+
+  root.find('br').each((_, element) => {
+    const parent = $(element).parent();
+    const siblings = parent.contents().toArray();
+    const index = siblings.indexOf(element);
+    const prev = siblings[index - 1];
+    const next = siblings[index + 1];
+
+    const prevIsBr = Boolean(prev && prev.type === 'tag' && (prev as any).tagName === 'br');
+    const nextIsBr = Boolean(next && next.type === 'tag' && (next as any).tagName === 'br');
+    if (prevIsBr && nextIsBr) {
+      $(element).remove();
+    }
+  });
+
+  return root.html()?.trim() || '';
+}
+
+function buildMessagesFromCandidates($: ReturnType<typeof load>, candidates: any[]): Message[] {
+  const messages: Message[] = [];
+
+  for (const el of candidates) {
+    const role = detectRole(el, $);
+    const contentSelectors = [
+      '[data-message-content]',
+      '[data-testid="conversation-turn-content"]',
+      '.markdown',
+      '.prose',
+      '.message-content'
+    ];
+
+    let html = '';
+    for (const selector of contentSelectors) {
+      const found = $(el).find(selector).first();
+      if (found && found.length > 0) {
+        html = found.html() || found.text() || '';
+        if (html) break;
+      }
+    }
+
+    if (!html) {
+      html = $(el).html() || $(el).text() || '';
+    }
+
+    const cleaned = stripJunkFromHtml(html);
+    if (!cleaned) continue;
+
+    messages.push({ role, html: cleaned });
+  }
+
+  return messages;
 }
 
 function extractHydrationPayload(html: string): string | null {
@@ -106,9 +212,25 @@ function extractMessageText(message: any): string {
       if (p && typeof p === 'object' && typeof p.text === 'string') return p.text;
       return '';
     })
-    .filter(Boolean);
+    .map((text: string) => normalizePlainText(text))
+    .filter((text: string) => Boolean(text) && !containsJunkText(text));
 
   return textParts.join('\n\n').trim();
+}
+
+function findConversationNode(value: any, seen = new Set<any>()): any {
+  if (!value || typeof value !== 'object' || seen.has(value)) return null;
+  seen.add(value);
+
+  if (Array.isArray(value.linear_conversation)) return value;
+  if (Array.isArray(value.messages) && value.messages.some((item: any) => item?.author?.role || item?.role)) return value;
+
+  for (const child of Object.values(value)) {
+    const found = findConversationNode(child, seen);
+    if (found) return found;
+  }
+
+  return null;
 }
 
 function parseFromStructuredHydration(html: string): ParsedConversation | null {
@@ -117,12 +239,12 @@ function parseFromStructuredHydration(html: string): ParsedConversation | null {
 
   try {
     const root = decodeReferenceTable(payload);
-    const routeData = root?.loaderData?.['routes/share.$shareId.($action)'];
-    const data = routeData?.serverResponse?.data;
+    const data = findConversationNode(root?.loaderData || root);
 
     const title =
       (typeof data?.title === 'string' && data.title.trim()) ||
-      (typeof routeData?.meta?.pageTitle === 'string' && routeData.meta.pageTitle.trim()) ||
+      (typeof data?.meta?.pageTitle === 'string' && data.meta.pageTitle.trim()) ||
+      (typeof root?.meta?.pageTitle === 'string' && root.meta.pageTitle.trim()) ||
       'ChatGPT Conversation Export';
 
     const turns = Array.isArray(data?.linear_conversation) ? data.linear_conversation : [];
@@ -149,10 +271,15 @@ function parseFromStructuredHydration(html: string): ParsedConversation | null {
 
 function cleanupCheerio($: ReturnType<typeof load>) {
   // remove scripts/styles
-  $('script, noscript, style, iframe').remove();
+  $('script, noscript, style, iframe, template, svg, canvas, meta, link').remove();
+  $('[hidden], [aria-hidden="true"], [data-hidden="true"]').remove();
 }
 
 function detectRole(el: any, $: ReturnType<typeof load>): Message['role'] {
+  const attrRole = ($(el).attr('data-message-author-role') || $(el).attr('data-testid') || '').toLowerCase();
+  if (attrRole.includes('assistant')) return 'assistant';
+  if (attrRole.includes('user')) return 'user';
+
   // aria labels
   const aria = $(el).attr('aria-label') || '';
   if (/assistant/i.test(aria)) return 'assistant';
@@ -172,50 +299,39 @@ function detectRole(el: any, $: ReturnType<typeof load>): Message['role'] {
 }
 
 export function parseChatHtml(html: string): ParsedConversation {
-  // Primary strategy: decode structured hydration payload instead of scraping rendered UI.
-  const structured = parseFromStructuredHydration(html);
-  if (structured) return structured;
-
   const $ = load(html);
   cleanupCheerio($);
 
-  // Title heuristics
-  const title = $('title').first().text() || 'ChatGPT Conversation Export';
+  const title = $('meta[property="og:title"]').attr('content')?.trim() || $('title').first().text() || 'ChatGPT Conversation Export';
 
-  // Try to find obvious container
-  let container = $('main, article').first();
-  if (!container || container.length === 0) {
-    container = $('body');
+  const selector = '[data-message-author-role], [data-testid*="conversation-turn"]';
+  const rawCandidates = $(selector).toArray();
+  const topLevelCandidates = rawCandidates.filter((candidate, index) => {
+    return !rawCandidates.some((other, otherIndex) => {
+      if (index === otherIndex) return false;
+      return $.contains(other, candidate);
+    });
+  });
+
+  const domMessages = buildMessagesFromCandidates($, topLevelCandidates);
+
+  if (domMessages.length > 0) {
+    const messages = domMessages.filter((message) => !containsJunkText(message.html));
+
+    if (messages.length > 0) {
+      const normalized = messages.map((message, index) => {
+        if (message.role !== 'unknown') return message;
+        const role: Message['role'] = index % 2 === 0 ? 'user' : 'assistant';
+        return { ...message, role };
+      });
+
+      return { title, messages: normalized };
+    }
   }
 
-  // Fallback selectors are intentionally narrow to avoid UI controls.
-  const candidates = container.find('[data-message-author-role], article[data-testid*="conversation-turn"]');
+  // Fallback: decode structured hydration when the rendered DOM is unavailable.
+  const structured = parseFromStructuredHydration(html);
+  if (structured) return structured;
 
-  const messages: Message[] = [];
-
-  if (candidates && candidates.length > 0) {
-    candidates.each((i, el) => {
-      const role = detectRole(el, $);
-      const inner = $(el).html() || $(el).text();
-      messages.push({ role, html: inner });
-    });
-  }
-
-  // No broad child-splitting fallback: that tends to capture page chrome controls.
-
-  // Normalize unknown roles by alternating if many unknowns
-  const unknowns = messages.filter(m => m.role === 'unknown');
-  if (unknowns.length === messages.length) {
-    // assume conversation alternating: user, assistant, user...
-    messages.forEach((m, idx) => {
-      m.role = idx % 2 === 0 ? 'user' : 'assistant';
-    });
-  } else {
-    // map remaining unknowns to assistant for readability
-    messages.forEach(m => {
-      if (m.role === 'unknown') m.role = 'assistant';
-    });
-  }
-
-  return { title, messages };
+  return { title, messages: [] };
 }
