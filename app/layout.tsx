@@ -1,26 +1,37 @@
 import './globals.css';
 import React from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'GPT to PDF',
+  title: {
+    default:
+      'Convert ChatGPT to PDF Free | GPT to PDF',
+    template: '%s | GPT to PDF'
+  },
   description:
-    'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.',
+    'Convert ChatGPT conversations and shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
   keywords: [
-    'chatgpt conversation to pdf online free',
-    'convert chatgpt share url to pdf',
-    'chatgpt shared link pdf downloader',
-    'free chatgpt to pdf',
-    'chatgpt to pdf without extension',
-    'mobile friendly chatgpt pdf export'
+    'chatgpt to pdf',
+    'convert chatgpt to pdf',
+    'save chatgpt conversation as pdf',
+    'chatgpt pdf converter',
+    'chatgpt shared link to pdf',
+    'export chatgpt chat',
+    'chatgpt conversation exporter',
+    'chatgpt to pdf free',
+    'chatgpt to pdf mobile',
+    'chatgpt export pdf'
   ],
+  alternates: {
+    canonical: '/'
+  },
   openGraph: {
-    title: 'Convert ChatGPT Shared Links to PDF — Free, No Login',
+    title: 'Convert ChatGPT to PDF Free',
     description:
-      'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.',
+      'Convert ChatGPT conversations and shared links into clean PDFs instantly.',
     url: siteUrl,
     siteName: 'GPT to PDF',
     images: [
@@ -28,16 +39,18 @@ export const metadata: Metadata = {
         url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: 'ChatGPT to PDF preview'
+        alt: 'Convert ChatGPT to PDF'
       }
     ],
+    locale: 'en_US',
     type: 'website'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Convert ChatGPT Shared Links to PDF — Free, No Login',
+    title: 'Convert ChatGPT to PDF Free',
     description:
-      'Paste any ChatGPT shared link and download a clean, formatted PDF in seconds. No extension, no signup, works on mobile. Free forever.'
+      'Convert ChatGPT conversations and shared links into clean PDFs instantly.',
+    images: [`${siteUrl}/og-image.png`]
   },
   icons: {
     icon: '/favicon.png',
@@ -57,10 +70,11 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1
     }
-  },
-  other: {
-    canonical: siteUrl
   }
+};
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

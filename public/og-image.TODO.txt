@@ -1,0 +1,4 @@
+TODO: Add public/og-image.png
+- Required size: 1200x630
+- Include product branding
+- Include text: Convert ChatGPT to PDF

@@ -1,67 +1,108 @@
-const PDF_GENERATED_COUNT_KEY = 'stats:pdf-generated-count';
-let fallbackCount = 0;
+import { Redis } from '@upstash/redis';
+import { logSecurityEvent } from './security';
 
-function hasKvConfig() {
-  return Boolean(
-    (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) ||
-    (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  );
+const PDF_GENERATED_COUNT_KEY = 'pdf_generated_count';
+const DEFAULT_EXPORT_COUNT = 150;
+
+let fallbackCount = DEFAULT_EXPORT_COUNT;
+let redisClient: Redis | null = null;
+let warnedMissingRedis = false;
+
+function isDevelopment() {
+  return process.env.NODE_ENV !== 'production';
 }
 
-function getKvConfig() {
-  const baseUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  return { baseUrl, token };
+function warnMissingRedisOnce() {
+  if (!isDevelopment() || warnedMissingRedis) {
+    return;
+  }
+
+  warnedMissingRedis = true;
+  console.warn('Upstash Redis not configured. Using temporary in-memory counter.');
 }
 
-async function kvRequest<T>(command: 'get' | 'incr'): Promise<T> {
-  const { baseUrl, token } = getKvConfig();
+function getRedisClient() {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (!baseUrl || !token) {
-    throw new Error('KV environment variables are not configured');
+  if (!url || !token) {
+    warnMissingRedisOnce();
+    return null;
   }
 
-  const method = command === 'get' ? 'GET' : 'POST';
-
-  const response = await fetch(`${baseUrl}/${command}/${PDF_GENERATED_COUNT_KEY}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    cache: 'no-store'
-  });
-
-  if (!response.ok) {
-    throw new Error(`KV request failed with status ${response.status}`);
+  if (!redisClient) {
+    redisClient = new Redis({ url, token });
   }
 
-  const payload = await response.json().catch(() => null);
-  if (payload && typeof payload === 'object' && 'error' in payload) {
-    throw new Error(String((payload as { error?: unknown }).error ?? 'KV request failed'));
+  return redisClient;
+}
+
+function parseCount(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
   }
 
-  return payload?.result as T;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+async function readRedisCount(redis: Redis) {
+  return parseCount(await redis.get(PDF_GENERATED_COUNT_KEY));
+}
+
+async function seedRedisCount(redis: Redis) {
+  const created = await redis.setnx(PDF_GENERATED_COUNT_KEY, DEFAULT_EXPORT_COUNT);
+
+  if (created) {
+    return DEFAULT_EXPORT_COUNT;
+  }
+
+  const current = await readRedisCount(redis);
+  return current ?? DEFAULT_EXPORT_COUNT;
 }
 
 export async function getPdfGeneratedCount() {
-  if (hasKvConfig()) {
-    const value = await kvRequest<number | string | null>('get');
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : 0;
+  const redis = getRedisClient();
+
+  if (redis) {
+    try {
+      const current = await readRedisCount(redis);
+      if (current !== null) {
+        return current;
+      }
+
+      return await seedRedisCount(redis);
+    } catch (error) {
+      logSecurityEvent('warn', 'PDF_GENERATION_FAILED', {
+        stage: 'stats_read',
+        reason: 'redis_read_failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
-    return 0;
   }
 
   return fallbackCount;
 }
 
 export async function incrementPdfGeneratedCount() {
-  if (hasKvConfig()) {
-    const value = await kvRequest<number>('incr');
-    return typeof value === 'number' ? value : 0;
+  const redis = getRedisClient();
+
+  if (redis) {
+    try {
+      await seedRedisCount(redis);
+      const value = await redis.incr(PDF_GENERATED_COUNT_KEY);
+      return typeof value === 'number' && Number.isFinite(value) ? value : fallbackCount;
+    } catch (error) {
+      logSecurityEvent('warn', 'PDF_GENERATION_FAILED', {
+        stage: 'stats_increment',
+        reason: 'redis_increment_failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 
   fallbackCount += 1;

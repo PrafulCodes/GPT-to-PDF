@@ -7,25 +7,26 @@ import Footer from '../../components/Footer';
 const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
 
 export const metadata: Metadata = {
-  title: 'ChatGPT Shared Link to PDF Converter — Paste URL, Download PDF',
+  title: 'Convert ChatGPT Shared Link to PDF Free',
   description:
-    'Convert any ChatGPT shared conversation link to a clean PDF. Just paste the URL — no extension, no account needed. Works instantly on desktop and mobile.',
+    'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
   keywords: [
-    'public chatgpt shared link pdf converter',
-    'chatgpt shared link pdf downloader',
-    'convert chatgpt share url to pdf',
-    'chatgpt conversation pdf from url',
-    'download chatgpt transcript from link',
+    'chatgpt shared link to pdf',
+    'convert chatgpt shared link',
+    'chatgpt share url to pdf',
+    'download chatgpt conversation pdf',
+    'chatgpt conversation export',
     'chatgpt shared link converter',
-    'export shared ai conversation to pdf'
-  ].join(', '),
+    'chatgpt transcript to pdf'
+  ],
   robots: 'index, follow',
   alternates: {
     canonical: `${siteUrl}/chatgpt-shared-link-to-pdf`
   },
   openGraph: {
-    title: 'ChatGPT Shared Link to PDF Converter',
-    description: 'Convert any ChatGPT shared conversation link to a clean PDF.',
+    title: 'Convert ChatGPT Shared Link to PDF Free',
+    description:
+      'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
     url: `${siteUrl}/chatgpt-shared-link-to-pdf`,
     type: 'website',
     images: [
@@ -38,8 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ChatGPT Shared Link to PDF Converter',
-    description: 'Convert any ChatGPT shared conversation link to a clean PDF.',
+    title: 'Convert ChatGPT Shared Link to PDF Free',
+    description:
+      'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
     images: [`${siteUrl}/og-image.png`]
   }
 };
@@ -96,6 +98,22 @@ export default function ChatGPTSharedLinkPage() {
     ]
   };
 
+  const softwareLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'GPT to PDF',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: siteUrl,
+    description:
+      'Convert ChatGPT conversations and shared links into clean PDFs.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD'
+    }
+  };
+
   return (
     <div>
       <Navbar />
@@ -105,7 +123,7 @@ export default function ChatGPTSharedLinkPage() {
         <section id="hero" className="px-4">
           <div className="max-w-3xl mx-auto">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-extrabold">ChatGPT Shared Link to PDF — Instant Converter</h1>
+              <h1 className="text-3xl sm:text-4xl font-extrabold">Convert ChatGPT Shared Links to PDF Instantly</h1>
               <p className="text-slate-600 mt-4 text-lg">
                 Convert any ChatGPT shared conversation link to a clean, formatted PDF in seconds. No extension, no account, no friction.
               </p>
@@ -302,17 +320,14 @@ export default function ChatGPTSharedLinkPage() {
         <section id="related" className="px-4 mt-8">
           <div className="max-w-3xl mx-auto text-center text-sm">
             <p className="text-slate-500">
-              Related: <a href="/" className="text-blue-600 hover:underline">Convert ChatGPT to PDF</a> •{' '}
-              <a href="/no-extension-chatgpt-to-pdf" className="text-blue-600 hover:underline">
-                No Extension Alternative
-              </a>{' '}
-              • <a href="/chatgpt-to-pdf-mobile" className="text-blue-600 hover:underline">Mobile Export</a>
+              Related: <a href="/" className="text-blue-600 hover:underline">Convert ChatGPT to PDF</a>
             </p>
           </div>
         </section>
 
         <Footer />
 
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       </main>

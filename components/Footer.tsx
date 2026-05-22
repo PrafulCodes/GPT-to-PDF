@@ -54,17 +54,17 @@ export default function Footer() {
   return (
     <footer role="contentinfo" className="site-footer">
       <div className="site-container footer-shell">
-        <div>
-          <div style={{fontFamily:'var(--font-mono)',fontWeight:varWeight('medium')}}>
-            <a href={siteUrl} className="link" style={{color:'var(--color-text-primary)'}}>
+        <div className="footer-brand">
+          <div className="footer-brand-name">
+            <a href={siteUrl} className="link footer-brand-link">
               GPT to PDF
             </a>
           </div>
-          <div style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}}>Clean exports from your ChatGPT conversations</div>
+          <div className="footer-brand-subtitle">Clean exports from your ChatGPT conversations</div>
         </div>
 
         <div className="footer-right">
-          <div className="footer-proof" ref={counterRef} aria-live="polite">
+          <div className="footer-proof-card" ref={counterRef} aria-live="polite">
             <div className="footer-proof-label">Trusted for</div>
             <div className="footer-proof-value">
               <span className={`footer-proof-dot ${isVisible ? 'is-visible' : ''}`} aria-hidden />
@@ -74,23 +74,137 @@ export default function Footer() {
           </div>
 
           <nav className="footer-links" aria-label="Footer links">
-            <a href="/chatgpt-shared-link-to-pdf" style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}} className="link">Shared Links</a>
-            <a href="/no-extension-chatgpt-to-pdf" style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}} className="link">No Extension</a>
-            <a href="/chatgpt-to-pdf-mobile" style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}} className="link">Mobile</a>
-            <a href="/#faq" style={{fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}} className="link">FAQ</a>
+            <a href="/" className="link footer-link">Home</a>
+            <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
+            <a href="/#faq" className="link footer-link">FAQ</a>
           </nav>
         </div>
       </div>
 
-      <div className="site-container" style={{marginTop:'10px',display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center',fontSize:'var(--text-xs)',color:'var(--color-text-tertiary)'}}>
-        <a href={creatorUrl} className="link" style={{fontWeight:600,color:'var(--color-text-primary)'}}>
+      <div className="site-container footer-meta-row">
+        <a href={creatorUrl} className="link footer-meta-link">
           {creatorName}
         </a>
         <span aria-hidden="true">•</span>
-        <a href={siteUrl} className="link">
+        <a href={siteUrl} className="link footer-meta-link">
           {siteHost}
         </a>
       </div>
+
+      <style>{`
+        .footer-brand {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .footer-brand-name {
+          font-family: var(--font-mono);
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: -0.02em;
+        }
+
+        .footer-brand-link {
+          color: var(--color-text-primary);
+        }
+
+        .footer-brand-subtitle {
+          font-size: 13px;
+          color: var(--color-text-tertiary);
+          line-height: 1.5;
+        }
+
+        .footer-proof-card {
+          min-width: 240px;
+          padding: 14px 16px;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+          border-radius: 18px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.98));
+          box-shadow: 0 12px 32px rgba(15,23,42,0.06);
+        }
+
+        .footer-proof-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: var(--color-text-tertiary);
+          margin-bottom: 6px;
+        }
+
+        .footer-proof-value {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--color-text-primary);
+          white-space: normal;
+          flex-wrap: wrap;
+          line-height: 1.4;
+        }
+
+        .footer-proof-count {
+          font-family: var(--font-mono);
+          font-size: 18px;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.02em;
+        }
+
+        .footer-proof-suffix {
+          color: var(--color-text-secondary);
+        }
+
+        .footer-links {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .footer-link,
+        .footer-meta-link {
+          font-size: 12px;
+          color: var(--color-text-tertiary);
+          text-decoration: none;
+        }
+
+        .footer-link:hover,
+        .footer-meta-link:hover {
+          color: var(--color-text-primary);
+          text-decoration: underline;
+        }
+
+        .footer-meta-row {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+          font-size: 12px;
+          color: var(--color-text-tertiary);
+        }
+
+        @media (max-width: 640px) {
+          .footer-proof-card {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+
+          .footer-proof-value {
+            font-size: 14px;
+          }
+
+          .footer-proof-count {
+            font-size: 17px;
+          }
+
+          .footer-links {
+            justify-content: flex-start;
+          }
+        }
+      `}</style>
     </footer>
   );
 }

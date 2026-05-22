@@ -1,33 +1,47 @@
-export function validateChatGptShareUrl(input: unknown): { ok: true; url: string } | { ok: false; reason: string } {
+const ALLOWED_CHAT_HOSTS = ['chat.openai.com', 'chatgpt.com', 'shareg.pt', 'share.openai.com'];
+
+export function isAllowedChatHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return ALLOWED_CHAT_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+}
+
+export function parseAndValidateChatUrl(input: unknown): { ok: true; url: URL } | { ok: false; reason: string } {
   if (!input || typeof input !== 'string') {
     return { ok: false, reason: 'Empty or invalid input' };
   }
 
-  let urlStr = input.trim();
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return { ok: false, reason: 'Empty or invalid input' };
+  }
+
+  let parsed: URL;
   try {
-    const url = new URL(urlStr);
-
-    const host = url.hostname.toLowerCase();
-
-    const allowed = [
-      'chat.openai.com',
-      'chatgpt.com',
-      'shareg.pt',
-      'share.openai.com'
-    ];
-
-    const isAllowed = allowed.some(a => host === a || host.endsWith('.' + a));
-    if (!isAllowed) {
-      return { ok: false, reason: 'URL is not a supported ChatGPT share link' };
-    }
-
-    // basic path check
-    if (!url.pathname || url.pathname.length < 2) {
-      return { ok: false, reason: 'URL path looks malformed' };
-    }
-
-    return { ok: true, url: url.toString() };
-  } catch (err) {
+    parsed = new URL(trimmed);
+  } catch {
     return { ok: false, reason: 'Malformed URL' };
   }
+
+  if (parsed.protocol !== 'https:') {
+    return { ok: false, reason: 'URL must use HTTPS' };
+  }
+
+  if (!isAllowedChatHost(parsed.hostname)) {
+    return { ok: false, reason: 'URL is not a supported ChatGPT share link' };
+  }
+
+  if (!parsed.pathname || parsed.pathname.length < 2) {
+    return { ok: false, reason: 'URL path looks malformed' };
+  }
+
+  return { ok: true, url: parsed };
+}
+
+export function validateChatGptShareUrl(input: unknown): { ok: true; url: string } | { ok: false; reason: string } {
+  const result = parseAndValidateChatUrl(input);
+  if (!result.ok) {
+    return result;
+  }
+
+  return { ok: true, url: result.url.toString() };
 }

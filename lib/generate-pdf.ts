@@ -624,7 +624,7 @@ export async function generatePdf(
     await page.close();
     page = null;
 
-    return { ok: true, buffer: pdf, timing };
+    return { ok: true, buffer: Buffer.from(pdf), timing };
   } catch (err: any) {
     try {
       if (page) await page.close();
