@@ -5,7 +5,7 @@ import { getClientIp, logSecurityEvent } from '../../../lib/security';
 
 export const runtime = 'nodejs';
 
-const STATS_CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=60';
+const STATS_CACHE_CONTROL = 'no-store';
 
 export async function GET(req: Request) {
   const ip = getClientIp(req);

@@ -298,7 +298,8 @@ export default function Page() {
         }
 
         .hero-section {
-          padding-top: clamp(72px, 8vw, 112px);
+          margin-top: clamp(24px, 3vw, 40px);
+          padding-top: clamp(24px, 3vw, 32px);
           padding-bottom: 0;
           text-align: center;
         }
@@ -623,7 +624,8 @@ export default function Page() {
 
         @media (max-width: 640px) {
           .hero-section {
-            padding-top: 56px;
+            margin-top: 24px;
+            padding-top: 32px;
             text-align: center;
           }
 

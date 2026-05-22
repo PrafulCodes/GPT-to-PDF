@@ -6,9 +6,10 @@ const csp = [
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
+  "style-src-elem 'self' https://fonts.googleapis.com 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https:",
-  "connect-src 'self' https://*.vercel.app https://vitals.vercel-insights.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https://*.vercel.app https://vitals.vercel-insights.com https://fonts.googleapis.com https://fonts.gstatic.com",
   'upgrade-insecure-requests'
 ].join('; ');
 

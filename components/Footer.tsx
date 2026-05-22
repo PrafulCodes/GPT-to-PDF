@@ -49,7 +49,7 @@ export default function Footer() {
     return () => observer.disconnect();
   }, []);
 
-  const countText = count === null ? '...' : `${formatNumber(animatedCount)}+`;
+  const countText = count === null ? '...' : formatNumber(animatedCount);
 
   return (
     <footer role="contentinfo" className="site-footer">

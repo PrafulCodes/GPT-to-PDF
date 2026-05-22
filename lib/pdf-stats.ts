@@ -2,23 +2,28 @@ import { Redis } from '@upstash/redis';
 import { logSecurityEvent } from './security';
 
 const PDF_GENERATED_COUNT_KEY = 'pdf_generated_count';
-const DEFAULT_EXPORT_COUNT = 150;
+const DEFAULT_EXPORT_COUNT = 0;
+const isProduction = process.env.NODE_ENV === 'production';
 
 let fallbackCount = DEFAULT_EXPORT_COUNT;
 let redisClient: Redis | null = null;
 let warnedMissingRedis = false;
+let warnedInvalidRedis = false;
 
 function isDevelopment() {
   return process.env.NODE_ENV !== 'production';
 }
 
 function warnMissingRedisOnce() {
-  if (!isDevelopment() || warnedMissingRedis) {
+  if ((!isDevelopment() && !isProduction) || warnedMissingRedis) {
     return;
   }
 
   warnedMissingRedis = true;
-  console.warn('Upstash Redis not configured. Using temporary in-memory counter.');
+  logSecurityEvent(isProduction ? 'error' : 'warn', 'REDIS_UNAVAILABLE', {
+    reason: 'missing_env_vars',
+    mode: isProduction ? 'production' : 'development'
+  });
 }
 
 function getRedisClient() {
@@ -31,7 +36,20 @@ function getRedisClient() {
   }
 
   if (!redisClient) {
-    redisClient = new Redis({ url, token });
+    try {
+      redisClient = new Redis({ url, token });
+    } catch (error) {
+      if (!warnedInvalidRedis) {
+        warnedInvalidRedis = true;
+        logSecurityEvent('error', 'REDIS_UNAVAILABLE', {
+          reason: 'client_initialization_failed',
+          mode: isProduction ? 'production' : 'development',
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+
+      return null;
+    }
   }
 
   return redisClient;
@@ -72,17 +90,31 @@ export async function getPdfGeneratedCount() {
     try {
       const current = await readRedisCount(redis);
       if (current !== null) {
+        logSecurityEvent('info', 'COUNTER_READ', {
+          source: 'redis',
+          value: current
+        });
         return current;
       }
 
-      return await seedRedisCount(redis);
+      const seeded = await seedRedisCount(redis);
+      logSecurityEvent('info', 'COUNTER_READ', {
+        source: 'redis_seeded',
+        value: seeded
+      });
+      return seeded;
     } catch (error) {
-      logSecurityEvent('warn', 'PDF_GENERATION_FAILED', {
+      logSecurityEvent('error', 'REDIS_UNAVAILABLE', {
         stage: 'stats_read',
         reason: 'redis_read_failed',
+        mode: isProduction ? 'production' : 'development',
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
+
+  if (isProduction) {
+    return 0;
   }
 
   return fallbackCount;
@@ -93,18 +125,46 @@ export async function incrementPdfGeneratedCount() {
 
   if (redis) {
     try {
-      await seedRedisCount(redis);
-      const value = await redis.incr(PDF_GENERATED_COUNT_KEY);
-      return typeof value === 'number' && Number.isFinite(value) ? value : fallbackCount;
+      const current = await readRedisCount(redis);
+      if (current === null) {
+        const seeded = await seedRedisCount(redis);
+        const next = await redis.incr(PDF_GENERATED_COUNT_KEY);
+        const nextCount = typeof next === 'number' && Number.isFinite(next) ? next : seeded + 1;
+        logSecurityEvent('info', 'COUNTER_INCREMENT_SUCCESS', {
+          source: 'redis_seeded',
+          previousCount: seeded,
+          nextCount
+        });
+        return nextCount;
+      }
+
+      const next = await redis.incr(PDF_GENERATED_COUNT_KEY);
+      const nextCount = typeof next === 'number' && Number.isFinite(next) ? next : current + 1;
+      logSecurityEvent('info', 'COUNTER_INCREMENT_SUCCESS', {
+        source: 'redis',
+        previousCount: current,
+        nextCount
+      });
+      return nextCount;
     } catch (error) {
-      logSecurityEvent('warn', 'PDF_GENERATION_FAILED', {
+      logSecurityEvent('error', 'COUNTER_INCREMENT_FAILED', {
         stage: 'stats_increment',
         reason: 'redis_increment_failed',
+        mode: isProduction ? 'production' : 'development',
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
 
+  if (isProduction) {
+    return 0;
+  }
+
   fallbackCount += 1;
+  logSecurityEvent('info', 'COUNTER_INCREMENT_SUCCESS', {
+    source: 'memory',
+    previousCount: fallbackCount - 1,
+    nextCount: fallbackCount
+  });
   return fallbackCount;
 }
