@@ -4,8 +4,7 @@ import HeroInputCard from '../components/HeroInputCard';
 import FAQ from '../components/FAQ';
 import { FAQ_ITEMS } from '../lib/seo';
 import Footer from '../components/Footer';
-
-const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+import { siteUrl } from '../lib/branding';
 
 const trustChips = [
   'No login required',

@@ -1,8 +1,7 @@
 import './globals.css';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
-
-const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+import { siteUrl } from '../lib/branding';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

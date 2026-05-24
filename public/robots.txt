@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://gpt-to-pdf-six.vercel.app/sitemap.xml

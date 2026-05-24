@@ -3,8 +3,7 @@ import { Metadata } from 'next';
 import Navbar from '../../components/Navbar';
 import HeroInputCard from '../../components/HeroInputCard';
 import Footer from '../../components/Footer';
-
-const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+import { siteUrl } from '../../lib/branding';
 
 export const metadata: Metadata = {
   title: 'Convert ChatGPT Shared Link to PDF Free',

@@ -1,6 +1,5 @@
 import type { MetadataRoute } from 'next';
-
-const siteUrl = 'https://gpt-to-pdf-six.vercel.app';
+import { siteUrl } from '../lib/branding';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
