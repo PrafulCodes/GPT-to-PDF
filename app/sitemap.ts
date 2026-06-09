@@ -16,6 +16,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: 'weekly',
       priority: 0.9
+    },
+    {
+      url: `${siteUrl}/save-chatgpt-conversation-as-pdf`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.85
+    },
+    {
+      url: `${siteUrl}/export-chatgpt-chat`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.85
+    },
+    {
+      url: `${siteUrl}/chatgpt-to-pdf-no-extension`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.85
     }
   ];
 }

@@ -16,7 +16,10 @@ export const metadata: Metadata = {
     'download chatgpt conversation pdf',
     'chatgpt conversation export',
     'chatgpt shared link converter',
-    'chatgpt transcript to pdf'
+    'chatgpt transcript to pdf',
+    'save chatgpt conversation as pdf',
+    'export chatgpt chat',
+    'chatgpt to pdf without extension'
   ],
   robots: 'index, follow',
   alternates: {
@@ -319,7 +322,10 @@ export default function ChatGPTSharedLinkPage() {
         <section id="related" className="px-4 mt-8">
           <div className="max-w-3xl mx-auto text-center text-sm">
             <p className="text-slate-500">
-              Related: <a href="/" className="text-blue-600 hover:underline">Convert ChatGPT to PDF</a>
+              Related: <a href="/" className="text-blue-600 hover:underline">Convert ChatGPT to PDF</a> ·{' '}
+              <a href="/save-chatgpt-conversation-as-pdf" className="text-blue-600 hover:underline">Save ChatGPT Conversation as PDF</a> ·{' '}
+              <a href="/export-chatgpt-chat" className="text-blue-600 hover:underline">Export ChatGPT Chat</a> ·{' '}
+              <a href="/chatgpt-to-pdf-no-extension" className="text-blue-600 hover:underline">ChatGPT to PDF Without Extension</a>
             </p>
           </div>
         </section>

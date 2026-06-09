@@ -1,10 +1,50 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Navbar from '../components/Navbar';
 import HeroInputCard from '../components/HeroInputCard';
 import FAQ from '../components/FAQ';
 import { FAQ_ITEMS } from '../lib/seo';
 import Footer from '../components/Footer';
 import { siteUrl } from '../lib/branding';
+
+export const metadata: Metadata = {
+  title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+  description:
+    'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert ChatGPT shared links without an extension.',
+  keywords: [
+    'chatgpt to pdf',
+    'convert chatgpt to pdf',
+    'save chatgpt conversation as pdf',
+    'export chatgpt chat',
+    'chatgpt shared link to pdf',
+    'chatgpt to pdf without extension'
+  ],
+  alternates: {
+    canonical: siteUrl
+  },
+  openGraph: {
+    title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+    description:
+      'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert shared links into clean PDFs.',
+    url: siteUrl,
+    type: 'website',
+    images: [
+      {
+        url: `${siteUrl}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'GPT to PDF homepage'
+      }
+    ]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+    description:
+      'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert shared links into clean PDFs.',
+    images: [`${siteUrl}/og-image.png`]
+  }
+};
 
 const trustChips = [
   'No login required',
@@ -252,6 +292,19 @@ export default function Page() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section id="related-pages" className="site-container home-section section-wide">
+          <div className="section-intro">
+            <p className="section-kicker">Related pages</p>
+            <h2 className="section-heading">ChatGPT export pages</h2>
+            <p className="seo-body">
+              Explore the focused pages for <a href="/save-chatgpt-conversation-as-pdf" className="link">save ChatGPT conversation as PDF</a>,{' '}
+              <a href="/export-chatgpt-chat" className="link">export ChatGPT chat</a>,{' '}
+              <a href="/chatgpt-to-pdf-no-extension" className="link">ChatGPT to PDF without extension</a>, and{' '}
+              <a href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT shared link to PDF</a>.
+            </p>
           </div>
         </section>
 
