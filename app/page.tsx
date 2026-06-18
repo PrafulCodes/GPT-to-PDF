@@ -8,9 +8,9 @@ import Footer from '../components/Footer';
 import { siteUrl } from '../lib/branding';
 
 export const metadata: Metadata = {
-  title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+  title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
   description:
-    'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert ChatGPT shared links without an extension.',
+    'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
   keywords: [
     'chatgpt to pdf',
     'convert chatgpt to pdf',
@@ -23,9 +23,9 @@ export const metadata: Metadata = {
     canonical: siteUrl
   },
   openGraph: {
-    title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+    title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
     description:
-      'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert shared links into clean PDFs.',
+      'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
     url: siteUrl,
     type: 'website',
     images: [
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Convert ChatGPT Conversations to PDF Free | GPT to PDF',
+    title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
     description:
-      'Convert ChatGPT conversations to PDF, save ChatGPT conversations as PDF, export ChatGPT chats, and convert shared links into clean PDFs.',
+      'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
     images: [`${siteUrl}/og-image.png`]
   }
 };

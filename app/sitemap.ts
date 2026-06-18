@@ -34,6 +34,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: 'weekly',
       priority: 0.85
+    },
+    {
+      url: `${siteUrl}/why-chatgpt-export-is-hard`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.8
     }
   ];
 }
