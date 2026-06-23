@@ -40,6 +40,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: 'weekly',
       priority: 0.8
+    },
+    {
+      url: `${siteUrl}/print-chatgpt-conversation`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.78
+    },
+    {
+      url: `${siteUrl}/chatgpt-conversation-archive`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.78
+    },
+    {
+      url: `${siteUrl}/chatgpt-export-tool`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.78
+    },
+    {
+      url: `${siteUrl}/how-to-save-chatgpt-conversations`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.78
     }
   ];
 }

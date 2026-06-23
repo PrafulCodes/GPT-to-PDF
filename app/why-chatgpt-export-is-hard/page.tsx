@@ -66,6 +66,25 @@ export const metadata: Metadata = {
 };
 
 export default function WhyChatGPTExportIsHardPage() {
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Why Exporting ChatGPT Conversations Is Hard',
+        item: pageUrl
+      }
+    ]
+  };
+
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -267,6 +286,7 @@ export default function WhyChatGPTExportIsHardPage() {
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       </main>
     </div>
   );

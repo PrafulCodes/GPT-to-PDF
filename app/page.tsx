@@ -8,9 +8,9 @@ import Footer from '../components/Footer';
 import { siteUrl } from '../lib/branding';
 
 export const metadata: Metadata = {
-  title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
+  title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
   description:
-    'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
+    'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving. No extension, no login, works on mobile.',
   keywords: [
     'chatgpt to pdf',
     'convert chatgpt to pdf',
@@ -23,9 +23,9 @@ export const metadata: Metadata = {
     canonical: siteUrl
   },
   openGraph: {
-    title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
+    title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
     description:
-      'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
+      'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving.',
     url: siteUrl,
     type: 'website',
     images: [
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GPT to PDF – Convert ChatGPT Chats to PDF | Save & Export Conversations',
+    title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
     description:
-      'Convert ChatGPT conversations to PDF in seconds. Paste a ChatGPT shared link to save, export, print, or share a clean formatted PDF. No extension, no signup, works on mobile.',
+      'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving.',
     images: [`${siteUrl}/og-image.png`]
   }
 };
@@ -145,6 +145,17 @@ export default function Page() {
     url: siteUrl,
     description:
       'Convert ChatGPT conversations and shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.'
+  };
+
+  const organizationLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'GPT to PDF',
+    url: siteUrl,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${siteUrl}/favicon.png`
+    }
   };
 
   const softwareLd = {
@@ -304,6 +315,10 @@ export default function Page() {
               <a href="/export-chatgpt-chat" className="link">export ChatGPT chat</a>,{' '}
               <a href="/chatgpt-to-pdf-no-extension" className="link">ChatGPT to PDF without extension</a>, and{' '}
               <a href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT shared link to PDF</a>.
+              {' '}
+              For why the export workflow matters, read <a href="/why-chatgpt-export-is-hard" className="link">why ChatGPT export is hard</a>.
+              {' '}
+              Learn how to <a href="/print-chatgpt-conversation" className="link">print ChatGPT conversation</a>, build a <a href="/chatgpt-conversation-archive" className="link">chatgpt conversation archive</a>, use the <a href="/chatgpt-export-tool" className="link">chatgpt export tool</a>, and follow <a href="/how-to-save-chatgpt-conversations" className="link">how to save ChatGPT conversations</a>.
             </p>
           </div>
         </section>
@@ -313,6 +328,7 @@ export default function Page() {
         <Footer />
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       </main>
