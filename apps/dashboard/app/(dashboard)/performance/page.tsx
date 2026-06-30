@@ -1,9 +1,8 @@
 import React from 'react';
 import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
-import LineChart from '../../../components/charts/LineChart';
-import BreakdownChart from '../../../components/charts/BreakdownChart';
-import { getPerformanceMetrics, getTrendData } from '@repo/analytics';
+import { db } from '@repo/db';
+import { getPerformanceMetrics, resolveTimeRange } from '@repo/analytics';
 
 export const revalidate = 0;
 
@@ -13,137 +12,249 @@ interface PageProps {
   }>;
 }
 
-export default async function PerformanceDiagnosticsPage({ searchParams }: PageProps) {
+export default async function PerformancePage({ searchParams }: PageProps) {
   const params = await searchParams;
   const cookieStore = await cookies();
   const range = params.range || cookieStore.get('analytics_range')?.value || '7d';
 
-  const [perf, trendData] = await Promise.all([
+  const { start, end } = resolveTimeRange(range);
+
+  // Fetch core performance percentiles, buckets, comparison stats, and lists
+  const [perf, durationBuckets, engineComparison, slowest, fastest] = await Promise.all([
     getPerformanceMetrics(range),
-    getTrendData(range)
+    db.exportEvent.groupBy({
+      by: ['exportDurationBucket'],
+      _count: { id: true },
+      where: { timestamp: { gte: start, lte: end }, success: true },
+      orderBy: { _count: { id: 'desc' } }
+    }),
+    db.exportEvent.groupBy({
+      by: ['exportEngineVersion'],
+      _count: { id: true },
+      _avg: { generationDuration: true },
+      where: { timestamp: { gte: start, lte: end }, success: true },
+      orderBy: { _count: { id: 'desc' } }
+    }),
+    db.exportEvent.findMany({
+      where: { success: true, timestamp: { gte: start, lte: end } },
+      orderBy: { generationDuration: 'desc' },
+      take: 5
+    }),
+    db.exportEvent.findMany({
+      where: { success: true, timestamp: { gte: start, lte: end } },
+      orderBy: { generationDuration: 'asc' },
+      take: 5
+    })
   ]);
 
-  const latencyMetrics = [
-    { name: 'Average Latency', value: `${perf.avgDuration}s`, detail: 'Mean generation duration' },
-    { name: 'Median (P50) Latency', value: `${perf.median}s`, detail: '50% of documents render under this speed' },
-    { name: '95th Percentile (P95)', value: `${perf.p95}s`, detail: '95% of documents render under this speed' },
-    { name: '99th Percentile (P99)', value: `${perf.p99}s`, detail: '99% of documents render under this speed' },
-    { name: 'Fastest Latency', value: `${perf.minDuration}s`, detail: 'Minimum successful generation time' },
-    { name: 'Slowest Latency', value: `${perf.maxDuration}s`, detail: 'Maximum successful generation time' },
-    { name: 'Avg Concurrency Queue', value: `${perf.avgQueueTime}s`, detail: 'Average queue wait duration' },
-    { name: 'Avg Parsing Duration', value: `${perf.avgParseTime}s`, detail: 'Average chat content parse time' },
-    { name: 'Avg Render Duration', value: `${perf.avgRenderTime}s`, detail: 'Average browser print execution' },
+  const stats = [
+    { name: 'Average Latency', value: `${perf.avgDuration}s`, detail: 'Mean generation time' },
+    { name: 'Median (P50)', value: `${perf.median}s`, detail: '50th percentile latency' },
+    { name: '95th Percentile (P95)', value: `${perf.p95}s`, detail: '95th percentile latency' },
+    { name: '99th Percentile (P99)', value: `${perf.p99}s`, detail: '99th percentile latency' }
   ];
 
-  // Convert trend data to LineChart expected format
-  const latencyChartData = trendData.map(d => ({
-    label: d.label,
-    value: d.avgDuration || 0.0
-  }));
-
-  // Infrastructure health lines
-  const dbHealthData = perf.systemHealth.map((h, i) => ({ label: `Ping ${i+1}`, value: h.dbLatency }));
-  const redisHealthData = perf.systemHealth.map((h, i) => ({ label: `Ping ${i+1}`, value: h.redisLatency }));
-
   return (
-    <div className="space-y-6 md:space-y-8 select-none">
+    <div className="space-y-6 md:space-y-8 select-none font-mono">
       
       {/* Title */}
       <div className="space-y-1">
         <h2 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Performance Diagnostics</h2>
-        <p className="text-xs text-neutral-600 font-mono">Render latencies, serverless load, and resource profiling.</p>
+        <p className="text-xs text-neutral-600 font-mono">Execution percentiles, bucket classifications, and engine regression checks.</p>
       </div>
 
-      {/* Latency Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {latencyMetrics.map((metric) => (
-          <Card key={metric.name}>
-            <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono font-medium">{metric.name}</p>
-            <p className="text-xl font-bold tracking-tight text-white mt-1.5 font-mono">
-              {metric.value}
-            </p>
-            <p className="text-[9px] text-neutral-400 font-mono mt-1">{metric.detail}</p>
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((s) => (
+          <Card key={s.name} className="bg-black border border-neutral-900 rounded p-4">
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">{s.name}</p>
+            <p className="text-lg font-bold text-white mt-1">{s.value}</p>
+            <p className="text-[8px] text-neutral-600 mt-0.5">{s.detail}</p>
           </Card>
         ))}
       </div>
 
-      {/* Latency Trend Graph */}
-      <Card>
-        <LineChart
-          data={latencyChartData}
-          height={180}
-          label={`Latency Performance Trend (${range.toUpperCase()})`}
-        />
-      </Card>
+      {/* Buckets & Comparisons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Export Duration Buckets */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Duration Buckets</h4>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Latency Range</th>
+                  <th className="px-4 py-2 text-right">Exports Count</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {durationBuckets.map((bucket, i) => (
+                  <tr key={i} className="hover:bg-neutral-950/10">
+                    <td className="px-4 py-2 text-white font-medium">{bucket.exportDurationBucket || 'Unknown'}</td>
+                    <td className="px-4 py-2 text-right font-bold text-white">{bucket._count.id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
-      {/* Systems Health Time-Series */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <LineChart
-            data={dbHealthData}
-            height={150}
-            label="PostgreSQL Query Latency (ms)"
-          />
+        {/* Engine Version Comparison */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Engine Versions</h4>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Engine version</th>
+                  <th className="px-4 py-2">Exports</th>
+                  <th className="px-4 py-2 text-right">Avg Latency</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {engineComparison.map((eng, i) => (
+                  <tr key={i} className="hover:bg-neutral-950/10">
+                    <td className="px-4 py-2 text-white font-medium">{eng.exportEngineVersion || 'Legacy'}</td>
+                    <td className="px-4 py-2">{eng._count.id}</td>
+                    <td className="px-4 py-2 text-right font-bold text-white">{(eng._avg.generationDuration || 0).toFixed(2)}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
-        <Card>
-          <LineChart
-            data={redisHealthData}
-            height={150}
-            label="Upstash Redis Response Latency (ms)"
-          />
-        </Card>
+
       </div>
 
-      {/* Deployment Version Comparisons */}
-      <Card className="space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold">Deployment Regression comparison</h3>
-        <div className="border border-neutral-900 rounded bg-black overflow-hidden font-mono text-xs">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                <th className="px-6 py-2">Deployment Version</th>
-                <th className="px-6 py-2 text-right">Total Exports logged</th>
-                <th className="px-6 py-2 text-right">Average render latency</th>
-                <th className="px-6 py-2 text-right text-emerald-400">Success Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-950">
-              {perf.deployments.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-neutral-600">
-                    [NO_DEPLOYMENT_RECORDS_FOUND]
-                  </td>
-                </tr>
-              ) : (
-                perf.deployments.map((d, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/40 transition-colors">
-                    <td className="px-6 py-3 text-white">{d.version}</td>
-                    <td className="px-6 py-3 text-neutral-400 text-right">{d.exportsCount.toLocaleString()}</td>
-                    <td className="px-6 py-3 text-neutral-400 text-right">{d.avgDuration}s</td>
-                    <td className="px-6 py-3 text-emerald-400 text-right font-bold">{d.successRate}%</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Failure Breakdown Cards */}
+      {/* Failures stages and reasons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <BreakdownChart
-            data={perf.failureStageBreakdown}
-            title="Failure Distribution by Operation Stage"
-          />
+        
+        {/* Failure stages */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Failure Stages</h4>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Stage</th>
+                  <th className="px-4 py-2 text-right">Failures</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {perf.failureStageBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="p-4 text-center text-neutral-600">[NO_STAGE_FAILURES_LOGGED]</td>
+                  </tr>
+                ) : (
+                  perf.failureStageBreakdown.map((s, i) => (
+                    <tr key={i} className="hover:bg-neutral-950/10">
+                      <td className="px-4 py-2 text-white font-medium">{s.name}</td>
+                      <td className="px-4 py-2 text-right font-bold text-white">{s.count}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
-        <Card>
-          <BreakdownChart
-            data={perf.failureReasonBreakdown}
-            title="Failure Distribution by Cause / Category"
-          />
+        {/* Failure reasons */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Failure Reasons</h4>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Failure Reason Log</th>
+                  <th className="px-4 py-2 text-right">Failures</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {perf.failureReasonBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="p-4 text-center text-neutral-600">[NO_REASON_FAILURES_LOGGED]</td>
+                  </tr>
+                ) : (
+                  perf.failureReasonBreakdown.map((r, i) => (
+                    <tr key={i} className="hover:bg-neutral-950/10">
+                      <td className="px-4 py-2 text-white font-medium truncate max-w-[200px]">{r.name}</td>
+                      <td className="px-4 py-2 text-right font-bold text-white">{r.count}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
+
+      </div>
+
+      {/* Latency Slowest/Fastest Breakdown Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Slowest Exports */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Slowest Document Generated</h3>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Export ID</th>
+                  <th className="px-4 py-2 text-right">Size Bucket</th>
+                  <th className="px-4 py-2 text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {slowest.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-center text-neutral-600">[NO_SLOWEST_RECORD_LOGGED]</td>
+                  </tr>
+                ) : (
+                  slowest.map((s, idx) => (
+                    <tr key={idx} className="hover:bg-neutral-950/20 transition-colors">
+                      <td className="px-4 py-2 text-white truncate max-w-[120px] select-all">{s.id}</td>
+                      <td className="px-4 py-2 text-right">{s.exportSizeBucket || 'Unknown'}</td>
+                      <td className="px-4 py-2 text-right text-red-400 font-bold">{s.generationDuration.toFixed(2)}s</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Fastest Exports */}
+        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Fastest Document Generated</h3>
+          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                  <th className="px-4 py-2">Export ID</th>
+                  <th className="px-4 py-2 text-right">Size Bucket</th>
+                  <th className="px-4 py-2 text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-950 text-neutral-400">
+                {fastest.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-center text-neutral-600">[NO_FASTEST_RECORD_LOGGED]</td>
+                  </tr>
+                ) : (
+                  fastest.map((f, idx) => (
+                    <tr key={idx} className="hover:bg-neutral-950/20 transition-colors">
+                      <td className="px-4 py-2 text-white truncate max-w-[120px] select-all">{f.id}</td>
+                      <td className="px-4 py-2 text-right">{f.exportSizeBucket || 'Unknown'}</td>
+                      <td className="px-4 py-2 text-right text-emerald-400 font-bold">{f.generationDuration.toFixed(2)}s</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
       </div>
 
     </div>

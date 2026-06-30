@@ -21,6 +21,7 @@ export interface TelemetryPayload {
   eventType: 'pageview' | 'export' | 'feature' | 'health';
   anonymousVisitorId: string;
   sessionId: string;
+  userAgent?: string;
   
   // Pageview info
   landingPath?: string;
@@ -45,14 +46,9 @@ export interface TelemetryPayload {
   touchSupport?: boolean;
   screenResolution?: string;
   viewport?: string;
-  pixelRatio?: number;
   darkMode?: boolean;
   language?: string;
   timezone?: string;
-  online?: boolean;
-  cookiesEnabled?: boolean;
-  localStorageEnabled?: boolean;
-  javaScriptEnabled?: boolean;
   
   // Geography Info
   country?: string;
@@ -83,6 +79,19 @@ export interface TelemetryPayload {
   tablesCount?: number | null;
   visitNumber?: number | null;
 
+  // V4 Telemetry additions
+  exportSource?: string | null;
+  exportSizeBucket?: string | null;
+  exportDurationBucket?: string | null;
+  localHour?: number | null;
+  dayOfWeek?: number | null;
+  exportNumberInSession?: number | null;
+  lifetimeExportNumber?: number | null;
+  returningSession?: boolean | null;
+  exportEngineVersion?: string | null;
+  screenSizeBucket?: string | null;
+  viewportSizeBucket?: string | null;
+
   // Feature specifics
   featureName?: string;
   featureMetadata?: string | null;
@@ -92,7 +101,7 @@ export interface TelemetryPayload {
   redisLatency?: number;
   apiLatency?: number;
   avgQueue?: number;
-  queueTimeSpec?: number; // V3 specific name mapping helper
+  queueTimeSpec?: number; 
   errorRate?: number;
   activeDbConnections?: number;
   activeRedisConnections?: number;
@@ -380,14 +389,132 @@ export function detectTrafficDetails(
 }
 
 /**
+ * Robust User Agent details extractor.
+ */
+export interface UserAgentDetails {
+  browser: string;
+  browserVersion: string;
+  os: string;
+  osVersion: string;
+  deviceType: 'Desktop' | 'Mobile' | 'Tablet' | 'Bot';
+}
+
+export function parseUserAgent(uaString: string): UserAgentDetails {
+  const ua = uaString || '';
+  let browser = 'Unknown';
+  let browserVersion = 'Unknown';
+  let os = 'Unknown';
+  let osVersion = 'Unknown';
+  let deviceType: 'Desktop' | 'Mobile' | 'Tablet' | 'Bot' = 'Desktop';
+
+  // 1. Detect Bot
+  if (/bot|googlebot|crawler|spider|robot|crawling/i.test(ua)) {
+    return { browser: 'Bot', browserVersion: '1.0', os: 'Linux', osVersion: 'Unknown', deviceType: 'Bot' };
+  }
+
+  // 2. Detect OS
+  if (ua.includes('Windows NT')) {
+    os = 'Windows';
+    const match = ua.match(/Windows NT ([\d.]+)/);
+    osVersion = match ? match[1] : 'Unknown';
+  } else if (ua.includes('Macintosh') || ua.includes('Mac OS X')) {
+    os = 'macOS';
+    const match = ua.match(/Mac OS X ([\d_.]+)/);
+    osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+  } else if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iPod')) {
+    os = 'iOS';
+    const match = ua.match(/OS ([\d_.]+)/);
+    osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+    deviceType = ua.includes('iPad') ? 'Tablet' : 'Mobile';
+  } else if (ua.includes('Android')) {
+    os = 'Android';
+    const match = ua.match(/Android ([\d.]+)/);
+    osVersion = match ? match[1] : 'Unknown';
+    deviceType = /mobile/i.test(ua) ? 'Mobile' : 'Tablet';
+  } else if (ua.includes('Linux')) {
+    os = 'Linux';
+    osVersion = 'Unknown';
+  }
+
+  // 3. Detect Browser
+  if (ua.includes('Opera') || ua.includes('OPR/')) {
+    browser = 'Opera';
+    const match = ua.match(/(?:Opera|OPR)\/([\d.]+)/);
+    browserVersion = match ? match[1] : 'Unknown';
+  } else if (ua.includes('Edg/')) {
+    browser = 'Edge';
+    const match = ua.match(/Edg\/([\d.]+)/);
+    browserVersion = match ? match[1] : 'Unknown';
+  } else if (ua.includes('Chrome') || ua.includes('CriOS')) {
+    browser = 'Chrome';
+    const match = ua.match(/(?:Chrome|CriOS)\/([\d.]+)/);
+    browserVersion = match ? match[1] : 'Unknown';
+  } else if (ua.includes('Firefox') || ua.includes('FxiOS')) {
+    browser = 'Firefox';
+    const match = ua.match(/(?:Firefox|FxiOS)\/([\d.]+)/);
+    browserVersion = match ? match[1] : 'Unknown';
+  } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+    browser = 'Safari';
+    const match = ua.match(/Version\/([\d.]+)/);
+    browserVersion = match ? match[1] : 'Unknown';
+  }
+
+  // 4. Fallback Device Type
+  if (deviceType === 'Desktop') {
+    if (/mobile|iphone|ipod|android.*mobile/i.test(ua)) {
+      deviceType = 'Mobile';
+    } else if (/ipad|tablet|android(?!.*mobile)/i.test(ua)) {
+      deviceType = 'Tablet';
+    }
+  }
+
+  return { browser, browserVersion, os, osVersion, deviceType };
+}
+
+/**
+ * Classifies screen resolution sizes into viewport buckets.
+ */
+export function bucketScreenSize(res: string): string {
+  if (!res || !res.includes('x')) return 'Unknown';
+  const width = parseInt(res.split('x')[0]);
+  if (isNaN(width)) return 'Unknown';
+  if (width < 375) return 'Mobile Small';
+  if (width < 768) return 'Mobile Large';
+  if (width < 1024) return 'Tablet';
+  if (width < 1440) return 'Laptop';
+  if (width < 1920) return 'Desktop';
+  if (width < 2560) return 'Desktop Large';
+  return 'Ultrawide';
+}
+
+/**
+ * Classifies PDF size weights.
+ */
+export function bucketPdfSize(sizeInBytes?: number | null): string {
+  if (!sizeInBytes) return 'Unknown';
+  const kb = sizeInBytes / 1024;
+  if (kb < 100) return 'Small';
+  if (kb < 500) return 'Medium';
+  if (kb < 2048) return 'Large';
+  return 'Huge';
+}
+
+/**
+ * Classifies export render times.
+ */
+export function bucketExportDuration(durationInSeconds?: number | null): string {
+  if (!durationInSeconds) return 'Unknown';
+  if (durationInSeconds <= 2.0) return '0–2 sec';
+  if (durationInSeconds <= 5.0) return '2–5 sec';
+  if (durationInSeconds <= 10.0) return '5–10 sec';
+  return '10+ sec';
+}
+
+/**
  * Legacy tracker method mapping directly to trackTelemetry for backward compatibility.
  */
 export async function trackExportEvent(data: TrackingData): Promise<void> {
   try {
-    const browser = detectBrowser(data.userAgent || '');
-    const deviceType = detectDevice(data.userAgent || '');
-    const operatingSystem = detectOS(data.userAgent || '');
-
     await trackTelemetry({
       schemaVersion: 2,
       eventType: 'export',
@@ -399,9 +526,7 @@ export async function trackExportEvent(data: TrackingData): Promise<void> {
       httpStatus: data.httpStatus,
       pdfSize: data.pdfSize,
       rawReferrer: data.referrer || 'Unknown',
-      browser,
-      operatingSystem,
-      deviceType,
+      userAgent: data.userAgent || undefined,
       country: data.country || 'Unknown',
       city: data.city || 'Unknown',
       generationDuration: data.generationDuration
@@ -412,7 +537,7 @@ export async function trackExportEvent(data: TrackingData): Promise<void> {
 }
 
 /**
- * V3 Decoupled Telemetry Ingestion Worker.
+ * V4 Ingestion Worker.
  */
 export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
   const now = new Date();
@@ -429,7 +554,36 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
     const landingPath = payload.landingPath || payload.currentPage || '/';
     const landingQuery = payload.landingQuery || null;
 
-    // 2. Process Anonymized Visitor Profile
+    // 2. Perform robust User-Agent detection on server
+    const uaDetails = parseUserAgent(payload.userAgent || '');
+    const browser = uaDetails.browser;
+    const browserVersion = uaDetails.browserVersion;
+    const operatingSystem = uaDetails.os;
+    const osVersion = uaDetails.osVersion;
+    const deviceType = uaDetails.deviceType;
+
+    // 3. Viewport size buckets
+    const screenSizeBucket = bucketScreenSize(payload.screenResolution || '');
+    const viewportSizeBucket = bucketScreenSize(payload.viewport || '');
+
+    // 4. Retrieve Visitor aggregates & progress counters
+    const visitor = await db.visitor.findUnique({ where: { anonymousVisitorId } });
+    const lifetimeExportNumber = (visitor?.totalExports || 0) + (payload.eventType === 'export' ? 1 : 0);
+    const returningSession = visitor ? (visitor.totalSessions > 1) : false;
+
+    // 5. Query active Session
+    const session = await db.session.findUnique({ where: { sessionId } });
+    const exportNumberInSession = (session?.exports || 0) + (payload.eventType === 'export' ? 1 : 0);
+
+    // 6. Resolve V4 Export specific bucket metrics
+    const exportSource = payload.exportSource || 'ChatGPT';
+    const exportSizeBucket = bucketPdfSize(payload.pdfSize);
+    const exportDurationBucket = bucketExportDuration(payload.generationDuration);
+    const localHour = payload.localHour ?? now.getHours();
+    const dayOfWeek = payload.dayOfWeek ?? now.getDay();
+    const exportEngineVersion = 'v2.0.4';
+
+    // 7. Upsert Visitor
     await db.visitor.upsert({
       where: { anonymousVisitorId },
       create: {
@@ -445,8 +599,8 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
         latestRawReferrer: rawReferrer,
         latestNormalizedReferrer: normalizedReferrer,
         acquisitionSource: acq.source,
-        preferredBrowser: payload.browser || 'Unknown',
-        preferredDevice: payload.deviceType || 'Unknown',
+        preferredBrowser: browser,
+        preferredDevice: deviceType,
         preferredCountry: payload.country || 'Unknown',
         totalSessions: 1,
         totalExports: payload.eventType === 'export' ? 1 : 0,
@@ -459,16 +613,15 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
         latestLandingQuery: landingQuery,
         latestRawReferrer: rawReferrer,
         latestNormalizedReferrer: normalizedReferrer,
-        preferredBrowser: payload.browser || undefined,
-        preferredDevice: payload.deviceType || undefined,
+        preferredBrowser: browser || undefined,
+        preferredDevice: deviceType || undefined,
         preferredCountry: payload.country || undefined,
         returningVisitor: true,
         totalExports: payload.eventType === 'export' ? { increment: 1 } : undefined
       }
     });
 
-    // 3. Process Browsing Session
-    const session = await db.session.findUnique({ where: { sessionId } });
+    // 8. Session handling
     if (!session) {
       await db.session.create({
         data: {
@@ -495,7 +648,6 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
           utmTerm: payload.utmTerm || null
         }
       });
-      // Increment visitor sessions
       await db.visitor.update({
         where: { anonymousVisitorId },
         data: { totalSessions: { increment: 1 } }
@@ -515,7 +667,7 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
       });
     }
 
-    // 4. Save Telemetry Events
+    // 9. Save V4 Ingested Events
     if (payload.eventType === 'export') {
       await db.exportEvent.create({
         data: {
@@ -529,14 +681,16 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
           chatSource: 'chatgpt-shared',
           rawReferrer,
           normalizedReferrer,
-          browser: payload.browser || 'Unknown',
-          operatingSystem: payload.operatingSystem || 'Unknown',
-          deviceType: payload.deviceType || 'Unknown',
+          browser,
+          browserVersion,
+          operatingSystem,
+          osVersion,
+          deviceType,
           country: payload.country || 'Unknown',
           city: payload.city || 'Unknown',
           generationDuration: payload.generationDuration || 0.0,
-          
           schemaVersion: payload.schemaVersion || 2,
+          
           queueTime: payload.queueTime || null,
           parseTime: payload.parseTime || null,
           renderTime: payload.renderTime || null,
@@ -562,19 +716,12 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
           utmContent: payload.utmContent || null,
           utmTerm: payload.utmTerm || null,
           
-          browserVersion: payload.browserVersion || null,
-          osVersion: payload.osVersion || null,
           touchSupport: payload.touchSupport || false,
           screenResolution: payload.screenResolution || null,
           viewport: payload.viewport || null,
-          pixelRatio: payload.pixelRatio || null,
           darkMode: payload.darkMode || false,
           language: payload.language || null,
           timezone: payload.timezone || null,
-          online: payload.online ?? true,
-          cookiesEnabled: payload.cookiesEnabled ?? true,
-          localStorageEnabled: payload.localStorageEnabled ?? true,
-          javaScriptEnabled: payload.javaScriptEnabled ?? true,
           
           region: payload.region || null,
           continent: payload.continent || null,
@@ -588,12 +735,24 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
           downloadTime: payload.downloadTime || null,
           deployVersion: payload.deployVersion || null,
           gitCommit: payload.gitCommit || null,
-          environment: payload.environment || null
+          environment: payload.environment || null,
+
+          // V4 added telemetry writes
+          exportSource,
+          exportSizeBucket,
+          exportDurationBucket,
+          localHour,
+          dayOfWeek,
+          exportNumberInSession,
+          lifetimeExportNumber,
+          returningSession,
+          exportEngineVersion,
+          screenSizeBucket,
+          viewportSizeBucket
         }
       });
 
-      // Update Aggregated daily statistics table
-      updateDailyStatistics(now).catch(err => console.error('[Telemetry Tracker V3] Daily stats failed:', err));
+      updateDailyStatistics(now).catch(err => console.error('[Telemetry Tracker V4] Daily stats failed:', err));
     } else if (payload.eventType === 'feature') {
       await db.featureUsage.create({
         data: {
@@ -621,7 +780,7 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('[Analytics Telemetry V3] Ingestion crashed:', error);
+    console.error('[Analytics Telemetry V4] Ingestion crashed:', error);
   }
 }
 
@@ -926,7 +1085,7 @@ export async function getExecutiveOverview(range: string): Promise<ExecutiveOver
 }
 
 /**
- * 2. Growth Analytics V3 Service Query
+ * 2. Growth Analytics V4 Service Query
  */
 export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
   const defaultGrowth: GrowthMetrics = {
@@ -948,7 +1107,6 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
   try {
     const { start, end } = resolveTimeRange(range);
 
-    // 1. Landing Pages
     const pages = await db.exportEvent.groupBy({
       by: ['landingPath'],
       _count: { id: true },
@@ -971,7 +1129,6 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
       })
     );
 
-    // 2. Referrers
     const refs = await db.exportEvent.groupBy({
       by: ['normalizedReferrer'],
       _count: { id: true },
@@ -993,7 +1150,6 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
       })
     );
 
-    // 3. UTM campaigns
     const campaigns = await db.exportEvent.groupBy({
       by: ['utmSource', 'utmCampaign'],
       _count: { id: true },
@@ -1018,7 +1174,6 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
       })
     );
 
-    // 4. Countries growth
     const countriesGroup = await db.exportEvent.groupBy({
       by: ['country'],
       _count: { id: true },
@@ -1046,7 +1201,6 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
     const clicks = await db.exportEvent.count({ where: { timestamp: { gte: start, lte: end } } });
     const successExports = await db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: true } });
 
-    // Derive Growth Intelligence Panel metrics
     const sortedPages = [...pagesResult].sort((a,b) => b.conversionRate - a.conversionRate);
     const sortedDevices = await db.exportEvent.groupBy({
       by: ['deviceType'],
@@ -1082,7 +1236,7 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
 }
 
 /**
- * 3. Performance Metrics Service Query (V3 SQL percentiles and regression logs)
+ * 3. Performance Metrics Service Query
  */
 export async function getPerformanceMetrics(range: string): Promise<PerformanceMetrics> {
   const { start, end } = resolveTimeRange(range);
@@ -1217,7 +1371,7 @@ export async function getPerformanceMetrics(range: string): Promise<PerformanceM
 }
 
 /**
- * 4. Export Explorer Query (Supports cursor pagination)
+ * 4. Export Explorer Query
  */
 export async function getExportExplorer(filters: any): Promise<{ logs: any[]; totalCount: number }> {
   try {
@@ -1291,13 +1445,12 @@ export async function getExportExplorer(filters: any): Promise<{ logs: any[]; to
 }
 
 /**
- * 5. Founder Insights V3 Query (Supports ranked calculations)
+ * 5. Founder Insights V3 Query
  */
 export async function getFounderInsights(): Promise<FounderInsight[]> {
   try {
     const insights: FounderInsight[] = [];
 
-    // 1. Google AI Overview conversion comparison
     const [aiStats, normalGoogleStats] = await Promise.all([
       db.exportEvent.aggregate({
         _count: { id: true },
@@ -1329,7 +1482,6 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
       });
     }
 
-    // 2. Rendering Speed comparison
     const [chromeAvg, overallAvg] = await Promise.all([
       db.exportEvent.aggregate({
         _avg: { generationDuration: true },
@@ -1361,7 +1513,6 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
       });
     }
 
-    // 3. Geographic Spike
     const [totalExports, indiaExports] = await Promise.all([
       db.exportEvent.count(),
       db.exportEvent.count({ where: { country: 'India' } })
@@ -1413,7 +1564,7 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
 }
 
 /**
- * 6. Decision Center V3 Query (Surfaces alerts and recommended next actions)
+ * 6. Decision Center Query
  */
 export async function getDecisionCenter(): Promise<DecisionCenterData> {
   return {
@@ -1457,7 +1608,7 @@ export async function getDecisionCenter(): Promise<DecisionCenterData> {
 }
 
 /**
- * 7. Live Stream Activity logs V3 (Supports event types)
+ * 7. Live Stream Activity logs
  */
 export async function getRealtimeActivity(): Promise<any[]> {
   try {
@@ -1742,34 +1893,4 @@ export async function getActiveAlerts(): Promise<any[]> {
     console.error('[Analytics] getActiveAlerts failed:', error);
     return [];
   }
-}
-
-function detectBrowser(ua: string): string {
-  if (!ua) return 'Unknown';
-  const uaLower = ua.toLowerCase();
-  if (uaLower.includes('opera') || uaLower.includes('opr/')) return 'Opera';
-  if (uaLower.includes('edg/')) return 'Edge';
-  if (uaLower.includes('chrome') || uaLower.includes('crios')) return 'Chrome';
-  if (uaLower.includes('firefox') || uaLower.includes('fxios')) return 'Firefox';
-  if (uaLower.includes('safari') && !uaLower.includes('chrome')) return 'Safari';
-  return 'Unknown';
-}
-
-function detectDevice(ua: string): string {
-  if (!ua) return 'Unknown';
-  const uaLower = ua.toLowerCase();
-  if (/ipad|tablet/i.test(uaLower)) return 'Tablet';
-  if (/mobi|iphone|ipod/i.test(uaLower)) return 'Mobile';
-  return 'Desktop';
-}
-
-function detectOS(ua: string): string {
-  if (!ua) return 'Unknown';
-  const uaLower = ua.toLowerCase();
-  if (uaLower.includes('win')) return 'Windows';
-  if (uaLower.includes('macintosh') || uaLower.includes('mac os')) return 'macOS';
-  if (uaLower.includes('android')) return 'Android';
-  if (/iphone|ipad|ipod/.test(uaLower)) return 'iOS';
-  if (uaLower.includes('linux')) return 'Linux';
-  return 'Unknown';
 }

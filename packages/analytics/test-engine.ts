@@ -35,6 +35,13 @@ let queryRawMockResult: any[] = [];
   },
   update: async (args: any) => {
     return args;
+  },
+  findUnique: async (args: any) => {
+    return {
+      anonymousVisitorId: args.where.anonymousVisitorId,
+      totalExports: 5,
+      totalSessions: 2
+    };
   }
 };
 
@@ -46,7 +53,8 @@ let queryRawMockResult: any[] = [];
       sessionId: args.where.sessionId,
       started: new Date(Date.now() - 30 * 1000), // 30 seconds ago
       pagesViewed: 1,
-      exitPage: '/'
+      exitPage: '/',
+      exports: 2
     };
   },
   create: async (args: any) => {

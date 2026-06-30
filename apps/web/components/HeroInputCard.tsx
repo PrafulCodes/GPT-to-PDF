@@ -130,15 +130,12 @@ export default function HeroInputCard() {
       touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       screenResolution: `${window.screen.width}x${window.screen.height}`,
       viewport: `${window.innerWidth}x${window.innerHeight}`,
-      pixelRatio: window.devicePixelRatio || 1,
       darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
       language: navigator.language || 'en',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-      online: navigator.onLine,
-      cookiesEnabled: navigator.cookieEnabled,
-      localStorageEnabled: isLocalStorageAvailable(),
-      javaScriptEnabled: true,
-      approximateLatency: 0.0
+      approximateLatency: 0.0,
+      localHour: new Date().getHours(),
+      dayOfWeek: new Date().getDay()
     };
 
     // Post pageview telemetry
@@ -187,6 +184,18 @@ export default function HeroInputCard() {
       utmContent: query.get('utm_content') || undefined,
       utmTerm: query.get('utm_term') || undefined,
     };
+
+    let exportSource = 'Unknown';
+    const lowerUrl = trimmed.toLowerCase();
+    if (lowerUrl.includes('chatgpt.com') || lowerUrl.includes('openai.com')) {
+      exportSource = 'ChatGPT';
+    } else if (lowerUrl.includes('claude.ai')) {
+      exportSource = 'Claude';
+    } else if (lowerUrl.includes('gemini.google.com') || lowerUrl.includes('bard.google.com')) {
+      exportSource = 'Gemini';
+    } else if (lowerUrl.includes('perplexity.ai')) {
+      exportSource = 'Perplexity';
+    }
 
     try {
       const req = fetch('/api/generate-pdf', {
@@ -243,10 +252,12 @@ export default function HeroInputCard() {
           touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
           screenResolution: `${window.screen.width}x${window.screen.height}`,
           viewport: `${window.innerWidth}x${window.innerHeight}`,
-          pixelRatio: window.devicePixelRatio || 1,
           darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
           language: navigator.language || 'en',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          exportSource,
+          localHour: new Date().getHours(),
+          dayOfWeek: new Date().getDay()
         })
       }).catch(err => console.error('Failed to log telemetry:', err));
 
@@ -280,10 +291,12 @@ export default function HeroInputCard() {
           touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
           screenResolution: `${window.screen.width}x${window.screen.height}`,
           viewport: `${window.innerWidth}x${window.innerHeight}`,
-          pixelRatio: window.devicePixelRatio || 1,
           darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
           language: navigator.language || 'en',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          exportSource,
+          localHour: new Date().getHours(),
+          dayOfWeek: new Date().getDay()
         })
       }).catch(telemetryErr => console.error('Failed to log failure telemetry:', telemetryErr));
     } finally {

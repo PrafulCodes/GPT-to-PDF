@@ -9,14 +9,11 @@ interface SidebarProps {
 }
 
 const navigationItems = [
-  { name: 'Decision Center', href: '/dashboard' },
-  { name: 'Executive Overview', href: '/dashboard/overview' },
-  { name: 'Product Analytics', href: '/analytics' },
-  { name: 'Acquisitions & Growth', href: '/growth' },
-  { name: 'Performance Diagnostics', href: '/performance' },
-  { name: 'SEO Intelligence', href: '/seo' },
-  { name: 'Export Explorer', href: '/exports' },
-  { name: 'Founder Insights', href: '/insights' },
+  { name: 'Overview', href: '/dashboard' },
+  { name: 'Analytics', href: '/analytics' },
+  { name: 'Exports', href: '/exports' },
+  { name: 'Performance', href: '/performance' },
+  { name: 'SEO', href: '/seo' },
   { name: 'Settings', href: '/settings' },
   { name: 'Health Console', href: '/health' },
 ];

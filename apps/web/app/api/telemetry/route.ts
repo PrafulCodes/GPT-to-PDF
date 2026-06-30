@@ -12,12 +12,27 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // Parse single payload or batch arrays of events
+    // Extract Vercel geography and client user-agent headers
+    const country = req.headers.get('x-vercel-ip-country') || undefined;
+    const region = req.headers.get('x-vercel-ip-country-region') || undefined;
+    const city = req.headers.get('x-vercel-ip-city') || undefined;
+    const timezone = req.headers.get('x-vercel-ip-timezone') || undefined;
+    const userAgent = req.headers.get('user-agent') || undefined;
+
     const payloads = Array.isArray(body) ? body : [body];
 
     // Fire-and-forget background worker execution
     for (const payload of payloads) {
-      trackTelemetry(payload).catch(err => {
+      const enrichedPayload = {
+        ...payload,
+        country: country || payload.country,
+        region: region || payload.region,
+        city: city || payload.city,
+        timezone: timezone || payload.timezone,
+        userAgent: userAgent || payload.userAgent
+      };
+
+      trackTelemetry(enrichedPayload).catch(err => {
         console.error('[Telemetry Endpoint Background Worker] Tracking failed:', err);
       });
     }

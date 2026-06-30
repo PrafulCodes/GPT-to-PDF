@@ -92,6 +92,19 @@ model ExportEvent {
   gitCommit          String?
   environment        String?
 
+  // V4 Telemetry Refinement additions
+  exportSource          String?
+  exportSizeBucket      String?
+  exportDurationBucket  String?
+  localHour             Int?
+  dayOfWeek             Int?
+  exportNumberInSession Int?
+  lifetimeExportNumber  Int?
+  returningSession      Boolean?
+  exportEngineVersion   String?
+  screenSizeBucket      String?
+  viewportSizeBucket    String?
+
   @@index([timestamp])
   @@index([success])
   @@index([browser])
