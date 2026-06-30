@@ -1,0 +1,17 @@
+{
+  "name": "@repo/analytics",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "build": "echo analytics"
+  },
+
+  "dependencies": {
+    "@repo/db": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
