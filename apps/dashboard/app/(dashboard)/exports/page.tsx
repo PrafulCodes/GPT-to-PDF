@@ -1,7 +1,8 @@
 import React from 'react';
 import { db } from '@repo/db';
 import Card from '../../../components/Card';
-import { checkDbStatus } from '../../../lib/db-queries';
+import { checkDbStatus, ExportLogEvent } from '../../../lib/db-queries';
+
 
 export const revalidate = 0;
 
@@ -35,7 +36,8 @@ export default async function ExportsPage({ searchParams }: PageProps) {
   // Check DB status
   const dbStatus = await checkDbStatus();
 
-  let logs: any[] = [];
+  let logs: ExportLogEvent[] = [];
+
   let totalCount = 0;
 
   if (dbStatus === 'CONNECTED') {
@@ -240,7 +242,8 @@ export default async function ExportsPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-900 font-mono text-xs">
-                {logs.map((log: any) => (
+                {logs.map((log) => (
+
                   <tr key={log.id} className="hover:bg-neutral-950/40 transition-colors text-neutral-300">
                     <td className="px-6 py-3.5 text-white select-all">{log.id}</td>
                     <td className="px-6 py-3.5 text-neutral-400">

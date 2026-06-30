@@ -1,5 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "SESSION_SECRET",
+    "ADMIN_PASSWORD_HASH",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "NEXT_PUBLIC_SITE_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

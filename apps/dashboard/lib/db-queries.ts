@@ -44,6 +44,22 @@ export interface DimensionCount {
   count: number;
 }
 
+export interface PerformanceMetrics {
+  avgDuration: number;
+  p95: number;
+  p99: number;
+  minDuration: number;
+  maxDuration: number;
+  failureStageBreakdown: DimensionCount[];
+  failureReasonBreakdown: DimensionCount[];
+}
+
+export interface SeoPerformance {
+  referrer: string;
+  exports: number;
+  avgLatency: number;
+}
+
 /**
  * Checks connection state to the database in real-time.
  * Uncached to prevent stale online status metrics.
@@ -61,7 +77,7 @@ export async function checkDbStatus(): Promise<'CONNECTED' | 'DISCONNECTED'> {
 /**
  * Fetches high-level KPI metrics. Cached for 30 seconds.
  */
-export const getKPIMetrics = unstable_cache(
+export const getKPIMetrics: () => Promise<KPIMetrics> = unstable_cache(
   async (): Promise<KPIMetrics> => {
     const defaultMetrics: KPIMetrics = {
       totalExports: 0,
@@ -134,7 +150,7 @@ export const getKPIMetrics = unstable_cache(
 /**
  * Fetches pre-aggregated daily counts for the last N days. Cached for 30 seconds.
  */
-export function getExportsOverTime(days: number = 30) {
+export function getExportsOverTime(days: number = 30): Promise<ChartDataPoint[]> {
   return unstable_cache(
     async (): Promise<ChartDataPoint[]> => {
       try {
@@ -193,7 +209,7 @@ export async function getRecentEvents(limit: number = 50, offset: number = 0): P
  */
 export function getDimensionBreakdown(
   dimension: 'browser' | 'deviceType' | 'operatingSystem' | 'referrer' | 'country' | 'city'
-) {
+): Promise<DimensionCount[]> {
   return unstable_cache(
     async (): Promise<DimensionCount[]> => {
       try {
@@ -228,8 +244,8 @@ export function getDimensionBreakdown(
 /**
  * Fetches advanced latency percentiles (p95, p99) and load aggregates. Cached for 30 seconds.
  */
-export const getPerformanceMetrics = unstable_cache(
-  async () => {
+export const getPerformanceMetrics: () => Promise<PerformanceMetrics> = unstable_cache(
+  async (): Promise<PerformanceMetrics> => {
     const defaultPerformance = {
       avgDuration: 0,
       p95: 0,
@@ -314,8 +330,8 @@ export const getPerformanceMetrics = unstable_cache(
 /**
  * SEO Route distribution aggregates. Cached for 30 seconds.
  */
-export const getSeoPerformance = unstable_cache(
-  async () => {
+export const getSeoPerformance: () => Promise<SeoPerformance[]> = unstable_cache(
+  async (): Promise<SeoPerformance[]> => {
     try {
       const status = await checkDbStatus();
       if (status === 'DISCONNECTED') return [];

@@ -54,10 +54,25 @@ The monitoring dashboard console requires credentials and secret signing variabl
 * **`ADMIN_PASSWORD_HASH`**: Safe bcrypt hash of the administrator password (`praful2006mo`).
 * **`SESSION_SECRET`**: Strong random hexadecimal string used to sign HMAC-SHA256 session JWTs (also supports `JWT_SECRET`).
 
+---
+
+## 3. Environment Mapping Reference Matrix
+
+Below is the distribution matrix for where variables should be configured:
+
+| Variable Name | Local `.env` | Vercel Web (`apps/web`) | Vercel Console (`apps/dashboard`) | Purpose / Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **`DATABASE_URL`** | **Yes** | **Yes** | **Yes** | **Shared** database access credential. |
+| **`ADMIN_PASSWORD_HASH`** | **Yes** | No | **Yes** | Authentication hash matching. |
+| **`SESSION_SECRET`** | **Yes** | No | **Yes** | JWT signing/verification. |
+| **`UPSTASH_REDIS_REST_URL`**| Optional | **Yes** | Optional (Diagnostics only) | Cache rate limiter. |
+| **`UPSTASH_REDIS_REST_TOKEN`**| Optional| **Yes** | Optional (Diagnostics only) | Cache access credentials. |
+| **`NEXT_PUBLIC_SITE_URL`** | Optional | **Yes** | No | Site routing canonical base. |
 
 ---
 
-## 3. Database Indexes
+## 4. Database Indexes
+
 
 To maintain sub-second queries as records scale beyond 100,000+ entries, the `ExportEvent` table includes the following indices:
 * `timestamp` (for date-range filters and chronological timelines)
