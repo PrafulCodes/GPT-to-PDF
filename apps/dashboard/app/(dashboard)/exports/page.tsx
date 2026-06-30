@@ -1,8 +1,8 @@
 import React from 'react';
-import { db } from '@repo/db';
+import Link from 'next/link';
+import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
-import { checkDbStatus, ExportLogEvent } from '../../../lib/db-queries';
-
+import { getExportExplorer } from '@repo/analytics';
 
 export const revalidate = 0;
 
@@ -12,277 +12,232 @@ interface PageProps {
     status?: string;
     device?: string;
     browser?: string;
+    country?: string;
     date?: string;
+    page?: string;
+    cursorId?: string;
   }>;
 }
 
-export default async function ExportsPage({ searchParams }: PageProps) {
+export default async function ExportExplorerPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const cookieStore = await cookies();
+
   const search = params.search || '';
   const status = params.status || 'all';
   const device = params.device || 'all';
   const browser = params.browser || 'all';
-  const dateRange = params.date || 'all';
+  const country = params.country || 'all';
+  const dateRange = params.date || cookieStore.get('analytics_range')?.value || '7d';
+  const currentPageNum = Number(params.page || '1');
+  const cursorId = params.cursorId || undefined;
 
-  const csvUrlParams = new URLSearchParams();
-  if (search) csvUrlParams.set('search', search);
-  if (status !== 'all') csvUrlParams.set('status', status);
-  if (device !== 'all') csvUrlParams.set('device', device);
-  if (browser !== 'all') csvUrlParams.set('browser', browser);
-  if (dateRange !== 'all') csvUrlParams.set('date', dateRange);
-  const csvExportUrl = `/api/export-csv?${csvUrlParams.toString()}`;
+  const limit = 50;
+  const offset = (currentPageNum - 1) * limit;
 
+  // Fetch exports logs using the explorer service helper
+  const { logs, totalCount } = await getExportExplorer({
+    search,
+    status,
+    device,
+    browser,
+    country,
+    dateRange,
+    limit,
+    offset,
+    cursorId
+  });
 
-  // Check DB status
-  const dbStatus = await checkDbStatus();
+  const totalPages = Math.ceil(totalCount / limit);
 
-  let logs: ExportLogEvent[] = [];
+  // Compile export download CSV query parameters
+  const csvParams = new URLSearchParams({
+    search,
+    status,
+    device,
+    browser,
+    country,
+    date: dateRange
+  }).toString();
 
-  let totalCount = 0;
-
-  if (dbStatus === 'CONNECTED') {
-    try {
-      // Build Prisma filter clauses dynamically
-      const where: any = {};
-
-      if (status === 'success') where.success = true;
-      if (status === 'failed') where.success = false;
-
-      if (device !== 'all') {
-        where.deviceType = { equals: device, mode: 'insensitive' };
-      }
-
-      if (browser !== 'all') {
-        // Handle casing compatibility
-        where.browser = { equals: browser, mode: 'insensitive' };
-      }
-
-      if (search) {
-        where.OR = [
-          { id: { contains: search, mode: 'insensitive' } },
-          { referrer: { contains: search, mode: 'insensitive' } },
-          { country: { contains: search, mode: 'insensitive' } },
-          { city: { contains: search, mode: 'insensitive' } },
-          { failureReason: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      if (dateRange !== 'all') {
-        const now = new Date();
-        if (dateRange === 'today') {
-          const startOfToday = new Date(now);
-          startOfToday.setUTCHours(0, 0, 0, 0);
-          where.timestamp = { gte: startOfToday };
-        } else if (dateRange === '7d') {
-          const startOf7d = new Date(now);
-          startOf7d.setUTCDate(now.getUTCDate() - 7);
-          startOf7d.setUTCHours(0, 0, 0, 0);
-          where.timestamp = { gte: startOf7d };
-        } else if (dateRange === '30d') {
-          const startOf30d = new Date(now);
-          startOf30d.setUTCDate(now.getUTCDate() - 30);
-          startOf30d.setUTCHours(0, 0, 0, 0);
-          where.timestamp = { gte: startOf30d };
-        }
-      }
-
-      // Execute query with a limit of 100 recent rows
-      [logs, totalCount] = await Promise.all([
-        db.exportEvent.findMany({
-          where,
-          orderBy: { timestamp: 'desc' },
-          take: 100
-        }),
-        db.exportEvent.count({ where })
-      ]);
-    } catch (error) {
-      console.error('[Dashboard Logs Page] Query execution failed:', error);
-    }
-  }
-
-  // Predefined browser / device options for filter dropdowns
-  const browserOptions = ['Chrome', 'Safari', 'Firefox', 'Edge', 'Opera', 'Unknown'];
-  const deviceOptions = ['Desktop', 'Mobile', 'Tablet', 'Bot', 'Unknown'];
+  // Next cursor computation
+  const nextCursor = logs.length > 0 ? logs[logs.length - 1].id : '';
 
   return (
-    <div className="space-y-6 md:space-y-8 select-none">
+    <div className="space-y-6 md:space-y-8 select-none font-mono">
       
-      {/* Page Title */}
-      <div className="space-y-1">
-        <h2 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Exports Ledger</h2>
-        <p className="text-xs text-neutral-600 font-mono">Query logs and examine transaction payloads.</p>
+      {/* Title & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Export Explorer</h2>
+          <p className="text-xs text-neutral-600 font-mono">Filter, paginate, and audit PDF exports ledger.</p>
+        </div>
+        <div>
+          <a
+            href={`/api/export-csv?${csvParams}`}
+            className="inline-flex h-8 items-center border border-white px-3 bg-black hover:bg-white hover:text-black font-mono text-[10px] uppercase tracking-widest transition-colors rounded"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
-      {/* FILTER BAR FORM */}
-      <Card>
-        <form method="GET" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          {/* Search box */}
-          <div className="flex flex-col space-y-1 col-span-1 sm:col-span-2 md:col-span-1">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Filter Search</span>
+      {/* Advanced Filters */}
+      <Card className="p-4 bg-neutral-950/20">
+        <form method="GET" action="/exports" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          
+          {/* Search bar */}
+          <div className="md:col-span-1">
+            <label className="text-[9px] uppercase tracking-wider text-neutral-500 block mb-1">Search Keywords</label>
             <input
               type="text"
               name="search"
               defaultValue={search}
-              placeholder="ID, location, referrer..."
-              className="bg-black border border-neutral-800 rounded px-2.5 py-1.5 text-xs text-white placeholder-neutral-700 focus:outline-none focus:border-neutral-500"
+              placeholder="Referrer, ID, country..."
+              className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono"
             />
           </div>
 
-          {/* Status select */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Status</span>
+          {/* Status filter */}
+          <div>
+            <label className="text-[9px] uppercase tracking-wider text-neutral-500 block mb-1">Success Status</label>
             <select
               name="status"
               defaultValue={status}
-              className="bg-black border border-neutral-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-neutral-500"
+              className="w-full h-8 bg-black border border-neutral-900 rounded px-2 text-xs text-white focus:outline-none focus:border-white font-mono"
             >
-              <option value="all">All States</option>
+              <option value="all">All statuses</option>
               <option value="success">Success</option>
               <option value="failed">Failed</option>
             </select>
           </div>
 
-          {/* Device select */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Device</span>
+          {/* Device filter */}
+          <div>
+            <label className="text-[9px] uppercase tracking-wider text-neutral-500 block mb-1">Device Segment</label>
             <select
               name="device"
               defaultValue={device}
-              className="bg-black border border-neutral-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-neutral-500"
+              className="w-full h-8 bg-black border border-neutral-900 rounded px-2 text-xs text-white focus:outline-none focus:border-white font-mono"
             >
               <option value="all">All Devices</option>
-              {deviceOptions.map(d => (
-                <option key={d} value={d.toLowerCase()}>{d}</option>
-              ))}
+              <option value="Desktop">Desktop</option>
+              <option value="Mobile">Mobile</option>
+              <option value="Tablet">Tablet</option>
+              <option value="Bot">Bot</option>
             </select>
           </div>
 
-          {/* Browser select */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Browser</span>
+          {/* Browser filter */}
+          <div>
+            <label className="text-[9px] uppercase tracking-wider text-neutral-500 block mb-1">Browser Engine</label>
             <select
               name="browser"
               defaultValue={browser}
-              className="bg-black border border-neutral-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-neutral-500"
+              className="w-full h-8 bg-black border border-neutral-900 rounded px-2 text-xs text-white focus:outline-none focus:border-white font-mono"
             >
               <option value="all">All Browsers</option>
-              {browserOptions.map(b => (
-                <option key={b} value={b.toLowerCase()}>{b}</option>
-              ))}
+              <option value="Chrome">Chrome</option>
+              <option value="Safari">Safari</option>
+              <option value="Firefox">Firefox</option>
+              <option value="Edge">Edge</option>
             </select>
           </div>
 
-          {/* Date range filter */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Date Range</span>
-            <select
-              name="date"
-              defaultValue={dateRange}
-              className="bg-black border border-neutral-800 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-neutral-500"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
-            </select>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 items-end justify-end col-span-1 sm:col-span-2 md:col-span-5 mt-2">
-            <a
-              href="/exports"
-              className="px-3 py-1.5 text-[10px] font-mono uppercase border border-neutral-900 text-neutral-500 hover:text-white rounded hover:bg-neutral-950 transition-colors"
-            >
-              Reset
-            </a>
-            {dbStatus === 'CONNECTED' && logs.length > 0 && (
-              <a
-                href={csvExportUrl}
-                className="px-3 py-1.5 text-[10px] font-mono uppercase border border-neutral-850 text-neutral-300 hover:text-white rounded hover:bg-neutral-900 transition-colors"
-              >
-                Export CSV
-              </a>
-            )}
+          {/* Filter button */}
+          <div className="flex items-end">
             <button
               type="submit"
-              className="px-4 py-1.5 text-[10px] font-mono uppercase bg-white text-black font-semibold rounded hover:bg-neutral-200 transition-colors"
+              className="w-full h-8 bg-white text-black font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-neutral-200 transition-colors rounded"
             >
-              Apply Filter
+              Apply filters
             </button>
           </div>
-        </form>
 
+        </form>
       </Card>
 
-      {/* SEARCH RESULTS TABLE */}
-      <div className="space-y-3">
-        <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500">
-          <span>QUERY_COUNT: {totalCount} records matched</span>
-          <span className="uppercase text-[9px]">Limited to recent 100 hits</span>
-        </div>
-
-        <div className="border border-neutral-900 rounded bg-black overflow-x-auto">
-          {logs.length === 0 ? (
-            <div className="p-12 text-center font-mono text-xs text-neutral-600">
-              [NO_LOGGED_EXPORTS_MATCHED]
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] font-mono text-neutral-500 uppercase tracking-widest">
-                  <th className="px-6 py-3">UUID</th>
-                  <th className="px-6 py-3">Timestamp (UTC)</th>
-                  <th className="px-6 py-3">Browser / OS / Device</th>
-                  <th className="px-6 py-3">Location</th>
-                  <th className="px-6 py-3">Duration</th>
-                  <th className="px-6 py-3">PDF Size</th>
-                  <th className="px-6 py-3">Referrer</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Reason</th>
+      {/* Ledger Table */}
+      <div className="border border-neutral-900 rounded bg-black overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[900px]">
+          <thead>
+            <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+              <th className="px-4 py-2.5">Timestamp (UTC)</th>
+              <th className="px-4 py-2.5">Visitor / Session</th>
+              <th className="px-4 py-2.5">Geo</th>
+              <th className="px-4 py-2.5">Platform Details</th>
+              <th className="px-4 py-2.5 text-right">PDF size</th>
+              <th className="px-4 py-2.5 text-right">Render Latency</th>
+              <th className="px-4 py-2.5 text-right">Pages</th>
+              <th className="px-4 py-2.5 text-right text-emerald-400">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-950 text-xs text-neutral-300">
+            {logs.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-neutral-600">
+                  [NO_EXPORT_EVENTS_LOGGED_MATCHING_FILTERS]
+                </td>
+              </tr>
+            ) : (
+              logs.map((ev) => (
+                <tr key={ev.id} className="hover:bg-neutral-950/40 transition-colors font-mono">
+                  <td className="px-4 py-3 text-neutral-400 select-none">
+                    {new Date(ev.timestamp).toISOString().replace('T', ' ').substring(0, 19)}
+                  </td>
+                  <td className="px-4 py-3 select-all truncate max-w-[150px]">
+                    {ev.anonymousVisitorId?.substring(0, 10) || 'anon'}/
+                    {ev.sessionId?.substring(0, 10) || 'anon'}
+                  </td>
+                  <td className="px-4 py-3 truncate max-w-[100px]">{ev.country}</td>
+                  <td className="px-4 py-3 text-neutral-400 select-none">
+                    {ev.browser} / {ev.operatingSystem} ({ev.deviceType})
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {ev.pdfSize ? `${Math.round(ev.pdfSize / 1024)} KB` : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right">{ev.generationDuration.toFixed(2)}s</td>
+                  <td className="px-4 py-3 text-right">{ev.estimatedPages || '-'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
+                      ev.success ? 'bg-emerald-950/20 text-emerald-400 border border-emerald-900' : 'bg-red-950/20 text-red-500 border border-red-900'
+                    }`}>
+                      {ev.success ? 'Success' : 'Failed'}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-900 font-mono text-xs">
-                {logs.map((log) => (
-
-                  <tr key={log.id} className="hover:bg-neutral-950/40 transition-colors text-neutral-300">
-                    <td className="px-6 py-3.5 text-white select-all">{log.id}</td>
-                    <td className="px-6 py-3.5 text-neutral-400">
-                      {new Date(log.timestamp).toISOString().replace('T', ' ').substring(0, 19)}
-                    </td>
-                    <td className="px-6 py-3.5 text-neutral-400">
-                      {log.browser} / {log.operatingSystem} ({log.deviceType})
-                    </td>
-                    <td className="px-6 py-3.5 text-neutral-300">
-                      {log.city}, {log.country}
-                    </td>
-                    <td className="px-6 py-3.5 text-neutral-400">{log.generationDuration.toFixed(2)}s</td>
-                    <td className="px-6 py-3.5 text-neutral-400">
-                      {log.pdfSize ? `${(log.pdfSize / 1024).toFixed(1)} KB` : '-'}
-                    </td>
-                    <td className="px-6 py-3.5 text-neutral-300 truncate max-w-[120px]" title={log.referrer}>
-                      {log.referrer}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded border ${
-                          log.success
-                            ? 'border-neutral-800 text-neutral-300 bg-neutral-900/30'
-                            : 'border-neutral-800 text-neutral-500 bg-neutral-950'
-                        }`}
-                      >
-                        {log.success ? 'SUCCESS' : 'FAILED'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3.5 text-right text-neutral-500 text-[10px]">
-                      {log.failureReason || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-neutral-900 pt-4 text-xs font-mono">
+          <div className="text-neutral-500">
+            Page {currentPageNum} of {totalPages} ({totalCount} total matched logs)
+          </div>
+          <div className="flex items-center gap-2">
+            {currentPageNum > 1 && (
+              <Link
+                href={`/exports?search=${search}&status=${status}&device=${device}&browser=${browser}&country=${country}&page=${currentPageNum - 1}`}
+                className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded"
+              >
+                Previous
+              </Link>
+            )}
+            {currentPageNum < totalPages && (
+              <Link
+                href={`/exports?search=${search}&status=${status}&device=${device}&browser=${browser}&country=${country}&page=${currentPageNum + 1}&cursorId=${nextCursor}`}
+                className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded"
+              >
+                Next (Cursor)
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

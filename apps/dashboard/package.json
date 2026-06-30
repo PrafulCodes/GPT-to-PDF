@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@repo/db": "*",
+    "@repo/analytics": "*",
     "@repo/shared": "*",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",

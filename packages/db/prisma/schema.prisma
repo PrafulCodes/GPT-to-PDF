@@ -11,30 +11,268 @@ model ExportEvent {
   id                 String   @id @default(uuid())
   timestamp          DateTime @default(now())
   success            Boolean
-  failureReason      String?  // e.g. "Rate Limited", "Invalid URL", "Fetch Failed"
-  failureStage       String?  // e.g. "rate_limiting", "fetch_chat_page", "generate_pdf"
-  httpStatus         Int?     // HTTP status code returned to client
-  pdfSize            Int?     // Size of the generated PDF in bytes
-  chatSource         String?  // e.g. "chatgpt-shared"
-  referrer           String   @default("Unknown")
+  failureReason      String?  
+  failureStage       String?  
+  httpStatus         Int?     
+  pdfSize            Int?     
+  chatSource         String?  
+  rawReferrer        String   @default("Unknown")
+  normalizedReferrer String   @default("Unknown")
   browser            String   @default("Unknown")
   operatingSystem    String   @default("Unknown")
   deviceType         String   @default("Unknown")
   country            String   @default("Unknown")
   city               String   @default("Unknown")
-  generationDuration Float    // overall duration in seconds
+  generationDuration Float    
+
+  // V3 Schema Versioning
+  schemaVersion      Int      @default(2)
+
+  // V3 Telemetry Additions
+  // Export Information
+  queueTime          Float?
+  parseTime          Float?
+  renderTime         Float?
+  estimatedPages     Int?
+  messageCount       Int?
+  imagesCount        Int?
+  codeBlockCount     Int?
+  tablesCount        Int?
+
+  // Visitor & Session Info (Anonymized)
+  anonymousVisitorId String?
+  sessionId          String?
+  visitNumber        Int?
+  returningVisitor   Boolean? @default(false)
+  landingPath        String?
+  landingQuery       String?
+  currentPage        String?
+  trafficChannel     String?
+  trafficSource      String?
+  trafficMedium      String?
+
+  // UTM parameters
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  utmContent         String?
+  utmTerm            String?
+
+  // Browser/Device Details
+  browserVersion     String?
+  osVersion          String?
+  touchSupport       Boolean? @default(false)
+  screenResolution   String?
+  viewport           String?
+  pixelRatio         Float?
+  darkMode           Boolean? @default(false)
+  language           String?
+  timezone           String?
+  online             Boolean? @default(true)
+  cookiesEnabled     Boolean? @default(true)
+  localStorageEnabled Boolean? @default(true)
+  javaScriptEnabled  Boolean? @default(true)
+
+  // Geography Extra
+  region             String?
+  continent          String?
+
+  // Network & Performance
+  approximateLatency Float?
+  connectionType     String?
+  protocol           String?
+  ttfb               Float?
+  pageLoadTime       Float?
+  hydrationTime      Float?
+  apiResponseTime    Float?
+  downloadTime       Float?
+
+  // Deployment Versioning
+  deployVersion      String?
+  gitCommit          String?
+  environment        String?
 
   @@index([timestamp])
   @@index([success])
   @@index([browser])
   @@index([deviceType])
-  @@index([referrer])
+  @@index([rawReferrer])
+  @@index([normalizedReferrer])
+  @@index([anonymousVisitorId])
+  @@index([sessionId])
+  @@index([country])
+  @@index([utmSource])
+}
+
+model Visitor {
+  anonymousVisitorId String    @id
+  firstVisit         DateTime  @default(now())
+  lastVisit          DateTime  @default(now())
+  
+  // Normalized landing page details
+  firstLandingPath   String    @default("/")
+  firstLandingQuery  String?   
+  latestLandingPath  String    @default("/")
+  latestLandingQuery String?   
+
+  // Referrers
+  firstRawReferrer        String @default("Direct")
+  firstNormalizedReferrer String @default("Direct")
+  latestRawReferrer       String @default("Direct")
+  latestNormalizedReferrer String @default("Direct")
+
+  acquisitionSource  String    @default("Direct") 
+  preferredBrowser   String    @default("Unknown")
+  preferredDevice    String    @default("Unknown")
+  preferredCountry   String    @default("Unknown")
+  totalSessions      Int       @default(1)
+  totalExports       Int       @default(0)
+  avgSessionDuration Float     @default(0.0)
+  returningVisitor   Boolean   @default(false)
+
+  sessions           Session[]
+}
+
+model Session {
+  sessionId          String    @id
+  anonymousVisitorId String
+  started            DateTime  @default(now())
+  ended              DateTime?
+  duration           Float?
+  
+  landingPath        String?
+  landingQuery       String?
+  exitPage           String?
+  pagesViewed        Int       @default(1)
+  exports            Int       @default(0)
+  bounce             Boolean   @default(true)
+  
+  rawReferrer        String?
+  normalizedReferrer String?
+  
+  trafficChannel     String?
+  trafficSource      String?
+  trafficMedium      String?
+
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  utmContent         String?
+  utmTerm            String?
+
+  visitor            Visitor   @relation(fields: [anonymousVisitorId], references: [anonymousVisitorId], onDelete: Cascade)
+
+  @@index([anonymousVisitorId])
+}
+
+model Deployment {
+  id                 String    @id @default(uuid())
+  version            String
+  gitCommit          String?
+  gitBranch          String?
+  buildNumber        String?
+  buildTimestamp     DateTime?
+  vercelDeploymentUrl String?
+  commitMessage      String?
+  environment        String    @default("production")
+  timestamp          DateTime  @default(now())
+  description        String?
+}
+
+model SystemHealth {
+  id                 String    @id @default(uuid())
+  timestamp          DateTime  @default(now())
+  dbLatency          Float
+  redisLatency       Float
+  apiLatency         Float
+  avgQueue           Float     @default(0.0)
+  queueTime          Float     @default(0.0)
+  errorRate          Float     @default(0.0)
+  activeDbConnections Int      @default(0)
+  activeRedisConnections Int    @default(0)
+  deployVersion      String?
+  buildVersion       String?
+  environment        String    @default("production")
+  cpu                Float?
+  memory             Float?
+
+  @@index([timestamp])
+}
+
+model FeatureUsage {
+  id                 String    @id @default(uuid())
+  timestamp          DateTime  @default(now())
+  feature            String    
+  metadata           String?   
 }
 
 model DailyStatistic {
-  date               DateTime @id // truncated date (e.g. 2026-06-30 00:00:00 UTC)
+  date               DateTime @id 
   totalExports       Int      @default(0)
   successes          Int      @default(0)
   failures           Int      @default(0)
-  avgGenerationTime  Float    @default(0.0) // running average of success duration
+  avgGenerationTime  Float    @default(0.0) 
+
+  visitors           Int      @default(0)
+  sessions           Int      @default(0)
+  conversionRate     Float    @default(0.0)
+  avgDuration        Float    @default(0.0)
+  median             Float    @default(0.0)
+  p95                Float    @default(0.0)
+  p99                Float    @default(0.0)
+  avgQueueTime       Float    @default(0.0)
+  avgParseTime       Float    @default(0.0)
+  avgRenderTime      Float    @default(0.0)
+}
+
+model MonthlyStatistic {
+  id                 String   @id @default(uuid())
+  year               Int
+  month              Int      
+  totalExports       Int      @default(0)
+  avgDailyExports    Float    @default(0.0)
+  successRate        Float    @default(0.0)
+  failureRate        Float    @default(0.0)
+  avgGenerationTime  Float    @default(0.0)
+  topCountry         String   @default("Unknown")
+  topBrowser         String   @default("Unknown")
+  topReferrer        String   @default("Unknown")
+
+  monthlyVisitors    Int      @default(0)
+  monthlySessions    Int      @default(0)
+  conversionRate     Float    @default(0.0)
+  returningVisitorRate Float  @default(0.0)
+  avgDuration        Float    @default(0.0)
+  median             Float    @default(0.0)
+  p95                Float    @default(0.0)
+  p99                Float    @default(0.0)
+  bestLandingPage    String   @default("Unknown")
+  bestReferrer       String   @default("Unknown")
+  bestAcquisitionChannel String @default("Unknown")
+
+  @@unique([year, month])
+}
+
+model SearchConsoleSnapshot {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  query              String
+  landingPage        String
+  clicks             Int
+  impressions        Int
+  ctr                Float
+  position           Float
+
+  @@index([date])
+}
+
+model Alert {
+  id                 String   @id @default(uuid())
+  timestamp          DateTime @default(now())
+  ruleName           String
+  severity           String   // "warning", "critical"
+  message            String
+  resolved           Boolean  @default(false)
+
+  @@index([timestamp])
 }

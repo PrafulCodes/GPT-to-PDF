@@ -1,6 +1,47 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { parseContentDispositionFileName } from '../lib/pdf-filename';
+
+function getBrowserName() {
+  if (typeof window === 'undefined') return 'Unknown';
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('opera') || ua.includes('opr/')) return 'Opera';
+  if (ua.includes('edg/')) return 'Edge';
+  if (ua.includes('chrome')) return 'Chrome';
+  if (ua.includes('firefox')) return 'Firefox';
+  if (ua.includes('safari')) return 'Safari';
+  return 'Unknown';
+}
+
+function getOSName() {
+  if (typeof window === 'undefined') return 'Unknown';
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('win')) return 'Windows';
+  if (ua.includes('mac')) return 'macOS';
+  if (ua.includes('linux')) return 'Linux';
+  if (ua.includes('android')) return 'Android';
+  if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS';
+  return 'Unknown';
+}
+
+function getDeviceType() {
+  if (typeof window === 'undefined') return 'Unknown';
+  const ua = navigator.userAgent.toLowerCase();
+  if (/mobi|iphone|ipod|iemobile|blackberry/i.test(ua)) return 'Mobile';
+  if (/ipad|tablet/i.test(ua)) return 'Tablet';
+  return 'Desktop';
+}
+
+function isLocalStorageAvailable() {
+  try {
+    localStorage.setItem('test_ls', '1');
+    localStorage.removeItem('test_ls');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 
 type ProgressStage = 'idle' | 'fetching' | 'formatting' | 'generating' | 'preparing' | 'done';
 
@@ -46,6 +87,68 @@ export default function HeroInputCard() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressStage>('idle');
 
+  useEffect(() => {
+    // 1. Initialize anonymous visitor_id and session_id
+    let anonymousVisitorId = localStorage.getItem('anon_visitor_id');
+    if (!anonymousVisitorId) {
+      anonymousVisitorId = 'vis_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('anon_visitor_id', anonymousVisitorId);
+    }
+
+    let sessionId = sessionStorage.getItem('anon_session_id');
+    if (!sessionId) {
+      sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('anon_session_id', sessionId);
+    }
+
+    // 2. Parse UTMs
+    const query = new URLSearchParams(window.location.search);
+    const utms = {
+      utmSource: query.get('utm_source') || undefined,
+      utmMedium: query.get('utm_medium') || undefined,
+      utmCampaign: query.get('utm_campaign') || undefined,
+      utmContent: query.get('utm_content') || undefined,
+      utmTerm: query.get('utm_term') || undefined,
+    };
+
+    // 3. Collect Browser Telemetry
+    const telemetryPayload = {
+      schemaVersion: 2,
+      eventType: 'pageview',
+      anonymousVisitorId,
+      sessionId,
+      landingPath: window.location.pathname,
+      landingQuery: window.location.search.substring(1) || undefined,
+      currentPage: window.location.pathname,
+      rawReferrer: document.referrer || 'Direct',
+      ...utms,
+      browser: getBrowserName(),
+      browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
+      operatingSystem: getOSName(),
+      osVersion: 'Unknown',
+      deviceType: getDeviceType(),
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      screenResolution: `${window.screen.width}x${window.screen.height}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      pixelRatio: window.devicePixelRatio || 1,
+      darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+      language: navigator.language || 'en',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      online: navigator.onLine,
+      cookiesEnabled: navigator.cookieEnabled,
+      localStorageEnabled: isLocalStorageAvailable(),
+      javaScriptEnabled: true,
+      approximateLatency: 0.0
+    };
+
+    // Post pageview telemetry
+    fetch('/api/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(telemetryPayload)
+    }).catch(err => console.error('Failed to log pageview telemetry:', err));
+  }, []);
+
   const pasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -70,7 +173,21 @@ export default function HeroInputCard() {
     setLoading(true);
     setProgress('fetching');
 
+    const startTime = performance.now();
     const stageTimers: Array<ReturnType<typeof setTimeout>> = [];
+    
+    // Telemetry identifiers
+    const anonymousVisitorId = localStorage.getItem('anon_visitor_id') || 'anon';
+    const sessionId = sessionStorage.getItem('anon_session_id') || 'anon';
+    const query = new URLSearchParams(window.location.search);
+    const utms = {
+      utmSource: query.get('utm_source') || undefined,
+      utmMedium: query.get('utm_medium') || undefined,
+      utmCampaign: query.get('utm_campaign') || undefined,
+      utmContent: query.get('utm_content') || undefined,
+      utmTerm: query.get('utm_term') || undefined,
+    };
+
     try {
       const req = fetch('/api/generate-pdf', {
         method: 'POST',
@@ -98,11 +215,77 @@ export default function HeroInputCard() {
       link.remove();
       URL.revokeObjectURL(link.href);
 
+      const generationDuration = (performance.now() - startTime) / 1000;
       setProgress('done');
       setTimeout(() => setProgress('idle'), 1800);
-    } catch {
+
+      // Decoupled log export success telemetry
+      fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 2,
+          eventType: 'export',
+          anonymousVisitorId,
+          sessionId,
+          success: true,
+          generationDuration,
+          landingPath: window.location.pathname,
+          landingQuery: window.location.search.substring(1) || undefined,
+          currentPage: window.location.pathname,
+          rawReferrer: document.referrer || 'Direct',
+          pdfSize: blob.size,
+          ...utms,
+          browser: getBrowserName(),
+          browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
+          operatingSystem: getOSName(),
+          deviceType: getDeviceType(),
+          touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          pixelRatio: window.devicePixelRatio || 1,
+          darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+          language: navigator.language || 'en',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+        })
+      }).catch(err => console.error('Failed to log telemetry:', err));
+
+    } catch (err: any) {
+      const generationDuration = (performance.now() - startTime) / 1000;
       setError('PDF generation failed. Please try again.');
       setProgress('idle');
+
+      // Decoupled log export failure telemetry
+      fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 2,
+          eventType: 'export',
+          anonymousVisitorId,
+          sessionId,
+          success: false,
+          failureReason: err instanceof Error ? err.message : 'Unknown generation error',
+          failureStage: 'generate_pdf',
+          generationDuration,
+          landingPath: window.location.pathname,
+          landingQuery: window.location.search.substring(1) || undefined,
+          currentPage: window.location.pathname,
+          rawReferrer: document.referrer || 'Direct',
+          ...utms,
+          browser: getBrowserName(),
+          browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
+          operatingSystem: getOSName(),
+          deviceType: getDeviceType(),
+          touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          pixelRatio: window.devicePixelRatio || 1,
+          darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+          language: navigator.language || 'en',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+        })
+      }).catch(telemetryErr => console.error('Failed to log failure telemetry:', telemetryErr));
     } finally {
       stageTimers.forEach(clearTimeout);
       setLoading(false);

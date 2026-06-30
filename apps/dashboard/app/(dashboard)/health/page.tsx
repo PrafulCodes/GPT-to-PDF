@@ -1,6 +1,6 @@
 import React from 'react';
 import Card from '../../../components/Card';
-import { checkDbStatus } from '../../../lib/db-queries';
+import { checkDbStatus } from '@repo/analytics';
 
 export const revalidate = 0;
 

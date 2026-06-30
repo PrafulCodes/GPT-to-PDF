@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { db } from '@repo/db';
+import { getExportsLogs } from '@repo/analytics';
 import { verifySession } from '../../../lib/session';
 import { logAudit, logError } from '../../../lib/logger';
 
@@ -52,54 +52,15 @@ export async function GET(req: NextRequest) {
   const dateRange = searchParams.get('date') || 'all';
 
   try {
-    // 3. Compile filters identical to the exports page
-    const where: any = {};
-
-    if (status === 'success') where.success = true;
-    if (status === 'failed') where.success = false;
-
-    if (device !== 'all') {
-      where.deviceType = { equals: device, mode: 'insensitive' };
-    }
-
-    if (browser !== 'all') {
-      where.browser = { equals: browser, mode: 'insensitive' };
-    }
-
-    if (search) {
-      where.OR = [
-        { id: { contains: search, mode: 'insensitive' } },
-        { referrer: { contains: search, mode: 'insensitive' } },
-        { country: { contains: search, mode: 'insensitive' } },
-        { city: { contains: search, mode: 'insensitive' } },
-        { failureReason: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-
-    if (dateRange !== 'all') {
-      const now = new Date();
-      if (dateRange === 'today') {
-        const startOfToday = new Date(now);
-        startOfToday.setUTCHours(0, 0, 0, 0);
-        where.timestamp = { gte: startOfToday };
-      } else if (dateRange === '7d') {
-        const startOf7d = new Date(now);
-        startOf7d.setUTCDate(now.getUTCDate() - 7);
-        startOf7d.setUTCHours(0, 0, 0, 0);
-        where.timestamp = { gte: startOf7d };
-      } else if (dateRange === '30d') {
-        const startOf30d = new Date(now);
-        startOf30d.setUTCDate(now.getUTCDate() - 30);
-        startOf30d.setUTCHours(0, 0, 0, 0);
-        where.timestamp = { gte: startOf30d };
-      }
-    }
-
-    // Query event rows (limited to 5000 rows for memory protection)
-    const events = await db.exportEvent.findMany({
-      where,
-      orderBy: { timestamp: 'desc' },
-      take: 5000
+    // 3. Query logs using the shared service (limited to 5000 rows for memory protection)
+    const { logs: events } = await getExportsLogs({
+      search,
+      status,
+      device,
+      browser,
+      dateRange,
+      limit: 5000,
+      offset: 0
     });
 
     // 4. Construct CSV Body
@@ -112,13 +73,14 @@ export async function GET(req: NextRequest) {
       'HTTPStatus',
       'PDFSize (Bytes)',
       'ChatSource',
-      'Referrer',
+      'Raw Referrer',
+      'Normalized Referrer',
       'Browser',
       'OS',
       'DeviceType',
       'Country',
       'City',
-      'Latency (Seconds)'
+      'GenerationDuration'
     ];
 
     const csvRows = [headers.join(',')];
@@ -126,14 +88,15 @@ export async function GET(req: NextRequest) {
     for (const ev of events) {
       const row = [
         ev.id,
-        ev.timestamp.toISOString(),
+        ev.timestamp instanceof Date ? ev.timestamp.toISOString() : new Date(ev.timestamp).toISOString(),
         ev.success ? 'TRUE' : 'FALSE',
         ev.failureReason || '',
         ev.failureStage || '',
         ev.httpStatus || '',
         ev.pdfSize || '',
         ev.chatSource || '',
-        ev.referrer,
+        ev.rawReferrer || '',
+        ev.normalizedReferrer || '',
         ev.browser,
         ev.operatingSystem,
         ev.deviceType,

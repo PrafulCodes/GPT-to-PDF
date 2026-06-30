@@ -7,7 +7,7 @@ interface RefreshWrapperProps {
   intervalMs?: number; // default to 45 seconds
 }
 
-export function RefreshWrapper({ intervalMs = 45000 }: RefreshWrapperProps) {
+export function RefreshWrapper({ intervalMs = 10000 }: RefreshWrapperProps) {
   const router = useRouter();
 
   useEffect(() => {

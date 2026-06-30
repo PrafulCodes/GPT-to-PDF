@@ -1,6 +1,7 @@
 import React from 'react';
+import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
-import { getSeoPerformance } from '../../../lib/db-queries';
+import { getSeoPerformance } from '@repo/analytics';
 
 export const revalidate = 0;
 
@@ -13,8 +14,18 @@ const landingPages = [
   { route: '/why-chatgpt-export-is-hard', description: 'Technical Analysis Article', visitors: 420, conversionPlaceholder: '8.4%' },
 ];
 
-export default async function SeoPage() {
-  const seoReferrers = await getSeoPerformance();
+interface PageProps {
+  searchParams: Promise<{
+    range?: string;
+  }>;
+}
+
+export default async function SeoPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const cookieStore = await cookies();
+  const range = params.range || cookieStore.get('analytics_range')?.value || '7d';
+
+  const seoReferrers = await getSeoPerformance(range);
 
   return (
     <div className="space-y-6 md:space-y-8 select-none">
@@ -30,7 +41,9 @@ export default async function SeoPage() {
         
         {/* Real traffic referral conversion metrics */}
         <Card className="lg:col-span-2 space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Search Engine Traffic Conversion</h3>
+          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">
+            Search Engine Traffic Conversion ({range.toUpperCase()})
+          </h3>
           <div className="border border-neutral-900 rounded bg-black overflow-x-auto">
             {seoReferrers.length === 0 ? (
               <div className="p-8 text-center font-mono text-xs text-neutral-600">

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import TimeRangeSelector from './TimeRangeSelector';
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -56,8 +57,10 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         </h1>
       </div>
 
-      {/* Right side: Environment diagnostics and Logout action */}
+      {/* Right side: Time Selector + Environment diagnostics and Logout action */}
       <div className="flex items-center gap-4 text-xs font-mono">
+        <TimeRangeSelector />
+
         <div className="hidden sm:flex items-center gap-3 text-[11px] text-neutral-400">
           <span>Environment: <strong className="text-white font-medium">Production</strong></span>
           <span className="text-neutral-800">|</span>
@@ -76,6 +79,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         </button>
       </div>
     </header>
+
   );
 }
 
