@@ -115,6 +115,9 @@ model ExportEvent {
   @@index([sessionId])
   @@index([country])
   @@index([utmSource])
+  @@index([landingPath])
+  @@index([utmCampaign])
+  @@index([exportSource])
 }
 
 model Visitor {
@@ -144,6 +147,9 @@ model Visitor {
   returningVisitor   Boolean   @default(false)
 
   sessions           Session[]
+
+  @@index([lastVisit])
+  @@index([returningVisitor])
 }
 
 model Session {
@@ -176,6 +182,7 @@ model Session {
   visitor            Visitor   @relation(fields: [anonymousVisitorId], references: [anonymousVisitorId], onDelete: Cascade)
 
   @@index([anonymousVisitorId])
+  @@index([started])
 }
 
 model Deployment {
@@ -236,6 +243,56 @@ model DailyStatistic {
   avgQueueTime       Float    @default(0.0)
   avgParseTime       Float    @default(0.0)
   avgRenderTime      Float    @default(0.0)
+}
+
+model Integration {
+  provider            String    @id
+  status              String    @default("NOT_CONNECTED")
+  encryptedCredential String?   
+  credentialIv        String?   
+  credentialTag       String?   
+  credentialVersion   Int       @default(1)
+  metadata            Json?     
+  connectedAt         DateTime? 
+  lastSuccessfulSync  DateTime? 
+  lastFailedSync      DateTime? 
+  lastError           String?   
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model SearchConsoleDaily {
+  date        DateTime @id
+  clicks      Int
+  impressions Int
+  ctr         Float
+  position    Float
+}
+
+model SearchConsoleQuery {
+  id          String   @id @default(uuid())
+  date        DateTime
+  query       String
+  clicks      Int
+  impressions Int
+  ctr         Float
+  position    Float
+
+  @@unique([date, query])
+  @@index([query])
+}
+
+model SearchConsolePage {
+  id          String   @id @default(uuid())
+  date        DateTime
+  landingPage String
+  clicks      Int
+  impressions Int
+  ctr         Float
+  position    Float
+
+  @@unique([date, landingPage])
+  @@index([landingPage])
 }
 
 model MonthlyStatistic {

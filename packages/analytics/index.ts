@@ -1158,128 +1158,78 @@ export async function getGrowthMetrics(range: string): Promise<GrowthMetrics> {
   try {
     const { start, end } = resolveTimeRange(range);
 
-    const pages = await db.exportEvent.groupBy({
-      by: ['landingPath'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } }
+    const [pages, refs, campaigns, countriesGroup, totalSessions, clicks, successExports, sortedDevices, browsers] = await Promise.all([
+      db.exportEvent.groupBy({ by: ['landingPath', 'success'], _count: { id: true }, where: { timestamp: { gte: start, lte: end } } }),
+      db.exportEvent.groupBy({ by: ['normalizedReferrer', 'success'], _count: { id: true }, where: { timestamp: { gte: start, lte: end } } }),
+      db.exportEvent.groupBy({ by: ['utmSource', 'utmCampaign', 'success'], _count: { id: true }, where: { timestamp: { gte: start, lte: end }, utmSource: { not: null } } }),
+      db.exportEvent.groupBy({ by: ['country', 'success'], _count: { id: true }, where: { timestamp: { gte: start, lte: end } } }),
+      db.session.count({ where: { started: { gte: start, lte: end } } }),
+      db.exportEvent.count({ where: { timestamp: { gte: start, lte: end } } }),
+      db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: true } }),
+      db.exportEvent.groupBy({ by: ['deviceType'], _count: { id: true }, where: { timestamp: { gte: start, lte: end }, success: true }, orderBy: { _count: { id: 'desc' } } }),
+      db.exportEvent.groupBy({ by: ['browser'], _count: { id: true }, where: { timestamp: { gte: start, lte: end }, success: true }, orderBy: { _count: { id: 'desc' } }, take: 1 })
+    ]);
+
+    const pageCounts = new Map<string, { total: number; successes: number }>();
+    pages.forEach(p => {
+      const path = p.landingPath || '/';
+      const currentVal = pageCounts.get(path) || { total: 0, successes: 0 };
+      currentVal.total += p._count.id;
+      if (p.success) currentVal.successes += p._count.id;
+      pageCounts.set(path, currentVal);
     });
+    const pagesResult = Array.from(pageCounts.entries()).map(([page, v]) => ({ page, visitors: v.total, exports: v.successes, conversionRate: v.total > 0 ? Math.round((v.successes / v.total) * 1000) / 10 : 0 })).sort((a, b) => b.visitors - a.visitors).slice(0, 10);
 
-    const pagesResult = await Promise.all(
-      pages.slice(0, 10).map(async p => {
-        const successes = await db.exportEvent.count({
-          where: { landingPath: p.landingPath, success: true, timestamp: { gte: start, lte: end } }
-        });
-        const total = p._count.id;
-        return {
-          page: p.landingPath || '/',
-          visitors: total,
-          exports: successes,
-          conversionRate: total > 0 ? Math.round((successes / total) * 1000) / 10 : 0
-        };
-      })
-    );
-
-    const refs = await db.exportEvent.groupBy({
-      by: ['normalizedReferrer'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } }
+    const referrerCounts = new Map<string, { total: number; successes: number }>();
+    refs.forEach(r => {
+      const source = r.normalizedReferrer || 'Direct';
+      const currentVal = referrerCounts.get(source) || { total: 0, successes: 0 };
+      currentVal.total += r._count.id;
+      if (r.success) currentVal.successes += r._count.id;
+      referrerCounts.set(source, currentVal);
     });
+    const referrersResult = Array.from(referrerCounts.entries()).map(([source, v]) => ({ source, sessions: v.total, successRate: v.total > 0 ? Math.round((v.successes / v.total) * 1000) / 10 : 100 })).sort((a, b) => b.sessions - a.sessions).slice(0, 10);
 
-    const referrersResult = await Promise.all(
-      refs.slice(0, 10).map(async r => {
-        const successes = await db.exportEvent.count({
-          where: { normalizedReferrer: r.normalizedReferrer, success: true, timestamp: { gte: start, lte: end } }
-        });
-        const total = r._count.id;
-        return {
-          source: r.normalizedReferrer || 'Direct',
-          sessions: total,
-          successRate: total > 0 ? Math.round((successes / total) * 1000) / 10 : 100
-        };
-      })
-    );
-
-    const campaigns = await db.exportEvent.groupBy({
-      by: ['utmSource', 'utmCampaign'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end }, utmSource: { not: null } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 10
+    const campaignCounts = new Map<string, { total: number; successes: number }>();
+    campaigns.forEach(c => {
+      const key = `${c.utmSource || 'Unknown'}____${c.utmCampaign || 'Unknown'}`;
+      const currentVal = campaignCounts.get(key) || { total: 0, successes: 0 };
+      currentVal.total += c._count.id;
+      if (c.success) currentVal.successes += c._count.id;
+      campaignCounts.set(key, currentVal);
     });
+    const utmCampaigns = Array.from(campaignCounts.entries()).map(([keyStr, v]) => {
+      const [utmSource, utmCampaign] = keyStr.split('____');
+      return { utmSource, utmCampaign, sessions: v.total, exports: v.successes, conversionRate: v.total > 0 ? Math.round((v.successes / v.total) * 1000) / 10 : 0 };
+    }).sort((a, b) => b.sessions - a.sessions).slice(0, 10);
 
-    const utmCampaigns = await Promise.all(
-      campaigns.map(async c => {
-        const successes = await db.exportEvent.count({
-          where: { utmSource: c.utmSource, utmCampaign: c.utmCampaign, success: true, timestamp: { gte: start, lte: end } }
-        });
-        const total = c._count.id;
-        return {
-          utmSource: c.utmSource || 'Unknown',
-          utmCampaign: c.utmCampaign || 'Unknown',
-          sessions: total,
-          exports: successes,
-          conversionRate: total > 0 ? Math.round((successes / total) * 1000) / 10 : 0
-        };
-      })
-    );
-
-    const countriesGroup = await db.exportEvent.groupBy({
-      by: ['country'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 10
+    const countryCounts = new Map<string, { total: number; successes: number }>();
+    countriesGroup.forEach(c => {
+      const country = c.country || 'Unknown';
+      const currentVal = countryCounts.get(country) || { total: 0, successes: 0 };
+      currentVal.total += c._count.id;
+      if (c.success) currentVal.successes += c._count.id;
+      countryCounts.set(country, currentVal);
     });
+    const countriesGrowth = Array.from(countryCounts.entries()).map(([country, v]) => ({ country, sessions: v.total, exports: v.successes, successRate: v.total > 0 ? Math.round((v.successes / v.total) * 1000) / 10 : 100 })).sort((a, b) => b.sessions - a.sessions).slice(0, 10);
 
-    const countriesGrowth = await Promise.all(
-      countriesGroup.map(async c => {
-        const successes = await db.exportEvent.count({
-          where: { country: c.country, success: true, timestamp: { gte: start, lte: end } }
-        });
-        const total = c._count.id;
-        return {
-          country: c.country,
-          sessions: total,
-          exports: successes,
-          successRate: total > 0 ? Math.round((successes / total) * 1000) / 10 : 100
-        };
-      })
-    );
-
-    const totalSessions = await db.session.count({ where: { started: { gte: start, lte: end } } });
-    const clicks = await db.exportEvent.count({ where: { timestamp: { gte: start, lte: end } } });
-    const successExports = await db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: true } });
-
-    const sortedPages = [...pagesResult].sort((a,b) => b.conversionRate - a.conversionRate);
-    const sortedDevices = await db.exportEvent.groupBy({
-      by: ['deviceType'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end }, success: true },
-      orderBy: { _count: { id: 'desc' } }
-    });
+    const sortedPages = [...pagesResult].sort((a, b) => b.conversionRate - a.conversionRate);
 
     return {
       landingPages: pagesResult,
       referrers: referrersResult,
       utmCampaigns,
       countriesGrowth,
-      conversionFunnel: {
-        sessions: totalSessions,
-        exportClicks: clicks,
-        successfulExports: successExports
-      },
+      conversionFunnel: { sessions: totalSessions, exportClicks: clicks, successfulExports: successExports },
       growthIntelligence: {
-        bestLandingPage: sortedPages[0]?.page || '/chatgpt-to-pdf',
-        worstLandingPage: sortedPages[sortedPages.length - 1]?.page || '/print-conversation-archive',
-        fastestGrowingReferrer: referrersResult[0]?.source || 'Google AI Overview',
-        highestConversionBrowser: 'Chrome',
-        fastestGrowingCountry: countriesGrowth[0]?.country || 'India',
+        bestLandingPage: sortedPages[0]?.page || '/',
+        worstLandingPage: sortedPages[sortedPages.length - 1]?.page || '/',
+        fastestGrowingReferrer: referrersResult[0]?.source || 'Direct',
+        highestConversionBrowser: browsers[0]?.browser || 'Chrome',
+        fastestGrowingCountry: countriesGrowth[0]?.country || 'Unknown',
         highestConversionDevice: sortedDevices[0]?.deviceType || 'Desktop'
       }
     };
-
   } catch (error) {
     console.error('[Analytics] getGrowthMetrics failed:', error);
     return defaultGrowth;
@@ -1604,16 +1554,17 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
       const topBrowser = browsers[0]?.name || 'Unknown';
       const topCountry = countries[0]?.name || 'Unknown';
       const topReferrer = referrers[0]?.name || 'Unknown';
+      
       const exportDelta = formatPercentageChange(current.exportsCount, previous.exportsCount);
       const successDelta = formatPercentageChange(current.successRate, previous.successRate);
       const latencyDelta = formatPercentageChange(current.avgDuration, previous.avgDuration);
 
-      return [
+      const insights: FounderInsight[] = [
         {
           id: `${range}-exports`,
           period: periodLabel,
           title: `${periodLabel} exports ${exportDelta >= 0 ? 'increased' : 'decreased'} ${Math.abs(exportDelta).toFixed(1)}%`,
-          description: `${current.exportsCount.toLocaleString()} exports completed in ${periodLabel.toLowerCase()} versus ${previous.exportsCount.toLocaleString()} in the previous period.`,
+          description: `${current.exportsCount.toLocaleString()} exports completed in ${periodLabel.toLowerCase()} versus ${previous.exportsCount.toLocaleString()} in the prior period.`,
           type: exportDelta >= 0 ? 'success' : 'warning'
         },
         {
@@ -1637,7 +1588,38 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
           description: `Average export latency is ${current.avgDuration.toFixed(1)}s compared with ${previous.avgDuration.toFixed(1)}s in the prior window.`,
           type: latencyDelta <= 0 ? 'success' : 'warning'
         }
-      ] as FounderInsight[];
+      ];
+
+      // Dynamic GSC Search performance insights if sync'd data exists
+      const { start: currentStart, end: currentEnd } = resolveTimeRange(range);
+      const { start: prevStart, end: prevEnd } = resolveComparisonRange(range);
+
+      const [currentGsc, prevGsc] = await Promise.all([
+        db.searchConsoleDaily.aggregate({
+          _sum: { clicks: true, impressions: true },
+          where: { date: { gte: currentStart, lte: currentEnd } }
+        }),
+        db.searchConsoleDaily.aggregate({
+          _sum: { clicks: true, impressions: true },
+          where: { date: { gte: prevStart, lte: prevEnd } }
+        })
+      ]);
+
+      const currentClicks = currentGsc._sum.clicks || 0;
+      const prevClicks = prevGsc._sum.clicks || 0;
+      const clicksDelta = formatPercentageChange(currentClicks, prevClicks);
+
+      if (currentClicks > 0 || prevClicks > 0) {
+        insights.push({
+          id: `${range}-search-clicks`,
+          period: periodLabel,
+          title: `Google Organic clicks ${clicksDelta >= 0 ? 'increased' : 'decreased'} ${Math.abs(clicksDelta).toFixed(1)}%`,
+          description: `Captured ${currentClicks.toLocaleString()} organic Google search clicks in ${periodLabel.toLowerCase()} vs ${prevClicks.toLocaleString()} in the previous window.`,
+          type: clicksDelta >= 0 ? 'success' : 'warning'
+        });
+      }
+
+      return insights;
     };
 
     const [todayInsights, weekInsights, monthInsights] = await Promise.all([
@@ -1657,44 +1639,69 @@ export async function getFounderInsights(): Promise<FounderInsight[]> {
  * 6. Decision Center Query
  */
 export async function getDecisionCenter(): Promise<DecisionCenterData> {
-  return {
-    biggestWin: {
-      title: "Today's Biggest Win",
-      metric: "Organic Perplexity Traffic +45%",
-      trend: "up",
-      status: "optimal",
-      action: "Write dedicated Perplexity-sharing instruction templates to maintain referral loop."
-    },
-    biggestProblem: {
-      title: "Today's Biggest Problem",
-      metric: "Safari Mobile Crash Rate at 14%",
-      trend: "down",
-      status: "critical",
-      action: "Optimize viewport print print-media assets in next hotfix to prevent Safari memory overflows."
-    },
-    fastestReferrer: {
-      title: "Fastest Growing Referrer",
-      metric: "ChatGPT Shared links (+120%)",
-      trend: "up",
-      status: "optimal",
-      action: "Optimize ChatGPT share prompt parameters to continue organic acquisition."
-    },
-    worstLandingPage: {
-      title: "Worst Performing Page",
-      metric: "/print-conversation-archive (1.2%)",
-      trend: "down",
-      status: "critical",
-      action: "Simplify page body copywriting. Add immediate conversion CTA input card above fold."
-    },
-    deployImpact: {
-      title: "Recent Deployment Impact",
-      metric: "Version v2.1.3 parser errors +12%",
-      trend: "neutral",
-      status: "critical",
-      action: "Roll back table parser regex fixes from latest git commit to stabilize failures."
-    },
-    suggestedAction: "Resolve the Safari Mobile memory layout crash by reverting tables style wrapping. Deploy v2.1.4."
-  };
+  try {
+    const range = '7d';
+    const overview = await getOverviewSnapshot(range);
+    const previous = await getOverviewSnapshot(range, resolveComparisonRange(range));
+    
+    const browsers = await getDimensionPerformanceBreakdown('browser', range);
+    const slowestBrowser = browsers.find(b => b.successRate < 90) || browsers[0];
+    
+    const landingPages = await getDimensionPerformanceBreakdown('landingPath', range);
+    const worstPage = [...landingPages].sort((a,b) => a.successRate - b.successRate)[0];
+
+    const referrers = await getDimensionPerformanceBreakdown('normalizedReferrer', range);
+    const topReferrer = referrers[0];
+
+    return {
+      biggestWin: {
+        title: "Weekly Traffic Success",
+        metric: `${topReferrer?.name || 'Direct'} referrals: ${topReferrer?.exports || 0}`,
+        trend: "up",
+        status: "optimal",
+        action: "Optimize onboarding flow for visitors arriving from this channel."
+      },
+      biggestProblem: {
+        title: "Highest Error Source",
+        metric: worstPage ? `${worstPage.name} conversions at ${worstPage.successRate.toFixed(1)}%` : "None detected",
+        trend: "down",
+        status: worstPage && worstPage.successRate < 90 ? "critical" : "optimal",
+        action: worstPage ? `Review client-side telemetry logs on ${worstPage.name} to diagnose failures.` : "Maintain monitoring."
+      },
+      fastestReferrer: {
+        title: "Top Channel Volume",
+        metric: `${topReferrer?.name || 'Direct'} (${topReferrer?.exports || 0} completions)`,
+        trend: "up",
+        status: "optimal",
+        action: "Enhance onboarding path to maintain referral loop."
+      },
+      worstLandingPage: {
+        title: "Lowest Conversion Page",
+        metric: worstPage ? `${worstPage.name} (${worstPage.successRate.toFixed(1)}%)` : "N/A",
+        trend: "down",
+        status: "critical",
+        action: "Simplify page body copywriting and improve visual call-to-actions."
+      },
+      deployImpact: {
+        title: "System Performance",
+        metric: `Average generation time is ${overview.avgDuration.toFixed(2)}s`,
+        trend: overview.avgDuration <= previous.avgDuration ? "up" : "down",
+        status: overview.avgDuration <= 3.0 ? "optimal" : "critical",
+        action: "Monitor server response latency on API exports."
+      },
+      suggestedAction: worstPage ? `Prioritize fixing the low-converting landing page: ${worstPage.name}.` : "Platform health is normal. Proceed with monitoring."
+    };
+  } catch (error) {
+    console.error('[Analytics] getDecisionCenter failed:', error);
+    return {
+      biggestWin: { title: 'N/A', metric: 'N/A', trend: 'neutral', status: 'info', action: 'N/A' },
+      biggestProblem: { title: 'N/A', metric: 'N/A', trend: 'neutral', status: 'info', action: 'N/A' },
+      fastestReferrer: { title: 'N/A', metric: 'N/A', trend: 'neutral', status: 'info', action: 'N/A' },
+      worstLandingPage: { title: 'N/A', metric: 'N/A', trend: 'neutral', status: 'info', action: 'N/A' },
+      deployImpact: { title: 'N/A', metric: 'N/A', trend: 'neutral', status: 'info', action: 'N/A' },
+      suggestedAction: 'N/A'
+    };
+  }
 }
 
 /**
@@ -2177,6 +2184,9 @@ export async function getSearchConsoleSnapshots(range: string): Promise<any[]> {
 /**
  * Prepare service boundaries for the Incident Alerting Framework.
  */
+/**
+ * Prepare service boundaries for the Incident Alerting Framework.
+ */
 export async function getActiveAlerts(): Promise<any[]> {
   try {
     return await db.alert.findMany({
@@ -2188,3 +2198,84 @@ export async function getActiveAlerts(): Promise<any[]> {
     return [];
   }
 }
+
+/**
+ * Fetch Search Console Daily Summary stats.
+ */
+export async function getSearchConsolePerformance(range: string): Promise<any[]> {
+  const { start, end } = resolveTimeRange(range);
+  try {
+    return await db.searchConsoleDaily.findMany({
+      where: { date: { gte: start, lte: end } },
+      orderBy: { date: 'asc' }
+    });
+  } catch (error) {
+    console.error('[Analytics] getSearchConsolePerformance failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch Search Console Top Queries.
+ */
+export async function getSearchConsoleQueries(range: string): Promise<any[]> {
+  const { start, end } = resolveTimeRange(range);
+  try {
+    const data = await db.searchConsoleQuery.groupBy({
+      by: ['query'],
+      _sum: { clicks: true, impressions: true },
+      _avg: { position: true },
+      where: { date: { gte: start, lte: end } },
+      orderBy: { _sum: { clicks: 'desc' } },
+      take: 20
+    });
+
+    return data.map(q => {
+      const clicks = q._sum.clicks || 0;
+      const impressions = q._sum.impressions || 0;
+      return {
+        query: q.query,
+        clicks,
+        impressions,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        position: q._avg.position || 0
+      };
+    });
+  } catch (error) {
+    console.error('[Analytics] getSearchConsoleQueries failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch Search Console Landing Pages.
+ */
+export async function getSearchConsolePages(range: string): Promise<any[]> {
+  const { start, end } = resolveTimeRange(range);
+  try {
+    const data = await db.searchConsolePage.groupBy({
+      by: ['landingPage'],
+      _sum: { clicks: true, impressions: true },
+      _avg: { position: true },
+      where: { date: { gte: start, lte: end } },
+      orderBy: { _sum: { clicks: 'desc' } },
+      take: 20
+    });
+
+    return data.map(p => {
+      const clicks = p._sum.clicks || 0;
+      const impressions = p._sum.impressions || 0;
+      return {
+        landingPage: p.landingPage,
+        clicks,
+        impressions,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        position: p._avg.position || 0
+      };
+    });
+  } catch (error) {
+    console.error('[Analytics] getSearchConsolePages failed:', error);
+    return [];
+  }
+}
+

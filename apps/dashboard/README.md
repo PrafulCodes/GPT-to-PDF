@@ -52,7 +52,12 @@ The monitoring dashboard console requires credentials and secret signing variabl
 
 * **`DATABASE_URL`**: PostgreSQL connection string used to retrieve and aggregate metrics.
 * **`ADMIN_PASSWORD_HASH`**: Safe bcrypt hash of the administrator password (`praful2006mo`).
-* **`SESSION_SECRET`**: Strong random hexadecimal string used to sign HMAC-SHA256 session JWTs (also supports `JWT_SECRET`).
+* **`SESSION_SECRET`**: Strong random hexadecimal string used to sign HMAC-SHA256 session JWTs.
+* **`GOOGLE_CLIENT_ID`**: OAuth 2.0 client ID from Google Cloud Console.
+* **`GOOGLE_CLIENT_SECRET`**: OAuth 2.0 client secret from Google Cloud Console.
+* **`GOOGLE_REDIRECT_URI`**: OAuth 2.0 authorized redirect URI (e.g. `http://localhost:3001/api/auth/google/callback`).
+* **`GOOGLE_SITE_PROPERTY`**: Optional canonical Google Search Console property URL to sync (must start with `https://` or `sc-domain:`).
+* **`GOOGLE_REFRESH_TOKEN`**: Optional pre-authorized Google OAuth refresh token fallback.
 
 ---
 
@@ -65,9 +70,15 @@ Below is the distribution matrix for where variables should be configured:
 | **`DATABASE_URL`** | **Yes** | **Yes** | **Yes** | **Shared** database access credential. |
 | **`ADMIN_PASSWORD_HASH`** | **Yes** | No | **Yes** | Authentication hash matching. |
 | **`SESSION_SECRET`** | **Yes** | No | **Yes** | JWT signing/verification. |
+| **`GOOGLE_CLIENT_ID`** | **Yes** | No | **Yes** | OAuth 2.0 client ID for Google APIs. |
+| **`GOOGLE_CLIENT_SECRET`**|**Yes**| No | **Yes** | OAuth 2.0 client secret for Google APIs. |
+| **`GOOGLE_REDIRECT_URI`**| **Yes** | No | **Yes** | OAuth 2.0 callback redirect endpoint. |
+| **`GOOGLE_SITE_PROPERTY`**| Optional| No | Optional | Google Search Console site identifier. |
+| **`GOOGLE_REFRESH_TOKEN`**| Optional| No | Optional | OAuth refresh token fallback override. |
 | **`UPSTASH_REDIS_REST_URL`**| Optional | **Yes** | Optional (Diagnostics only) | Cache rate limiter. |
 | **`UPSTASH_REDIS_REST_TOKEN`**| Optional| **Yes** | Optional (Diagnostics only) | Cache access credentials. |
 | **`NEXT_PUBLIC_SITE_URL`** | Optional | **Yes** | No | Site routing canonical base. |
+
 
 ---
 
