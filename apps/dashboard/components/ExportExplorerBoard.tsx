@@ -303,26 +303,25 @@ export default function ExportExplorerBoard({
             </>
           )}
         </aside>
-+      </div>
-+
-+      {totalPages > 1 && (
-+        <div className="flex items-center justify-between border-t border-neutral-900 pt-4 text-xs font-mono">
-+          <div className="text-neutral-500">Page {currentPageNum} of {totalPages}</div>
-+          <div className="flex items-center gap-2">
-+            {currentPageNum > 1 && (
-+              <Link href={buildHref(currentPageNum - 1)} className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded">
-+                Previous
-+              </Link>
-+            )}
-+            {currentPageNum < totalPages && (
-+              <Link href={buildHref(currentPageNum + 1)} className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded">
-+                Next
-+              </Link>
-+            )}
-+          </div>
-+        </div>
-+      )}
-     </div>
-   );
- }
-*** End Patch
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-neutral-900 pt-4 text-xs font-mono">
+          <div className="text-neutral-500">Page {currentPageNum} of {totalPages}</div>
+          <div className="flex items-center gap-2">
+            {currentPageNum > 1 && (
+              <Link href={buildHref(currentPageNum - 1)} className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded">
+                Previous
+              </Link>
+            )}
+            {currentPageNum < totalPages && (
+              <Link href={buildHref(currentPageNum + 1)} className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded">
+                Next
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1831,7 +1831,7 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
   const { start, end, interval } = resolveTimeRange(range);
 
   try {
-    let result: Array<{ period: Date; exports: bigint; successes: bigint; failures: bigint; avg_duration: number }> = [];
+    let result: Array<{ period: Date; exports: bigint; successes: bigint; failures: bigint; visitors: bigint; sessions: bigint; avg_duration: number }> = [];
 
     if (interval === 'hour') {
       result = await db.$queryRaw`
@@ -1950,12 +1950,9 @@ export async function getDimensionBreakdown(
           ? normalizeCountryName(rawValue)
           : rawValue?.trim() || null;
 
-        return {
-          name: normalizedValue,
-          count: g._count.id
-        };
+        return normalizedValue ? { name: normalizedValue, count: g._count.id } : null;
       })
-      .filter(item => !!item.name);
+      .filter((item): item is DimensionCount => !!item);
   } catch (error) {
     console.error(`[Analytics] getDimensionBreakdown failed for ${dimension}:`, error);
     return [];
@@ -1987,7 +1984,7 @@ export async function getLocationBreakdown(range: string): Promise<DimensionCoun
 }
 
 export async function getDimensionPerformanceBreakdown(
-  dimension: 'browser' | 'browserVersion' | 'deviceType' | 'operatingSystem' | 'osVersion' | 'referrer' | 'country' | 'landingPath' | 'normalizedReferrer' | 'exportSource' | 'trafficSource' | 'language' | 'timezone' | 'screenSizeBucket',
+  dimension: 'browser' | 'browserVersion' | 'deviceType' | 'operatingSystem' | 'osVersion' | 'referrer' | 'country' | 'city' | 'landingPath' | 'normalizedReferrer' | 'exportSource' | 'trafficSource' | 'language' | 'timezone' | 'screenSizeBucket',
   range: string
 ): Promise<Array<{ name: string; exports: number; successRate: number; avgLatency: number }>> {
   const { start, end } = resolveTimeRange(range);
