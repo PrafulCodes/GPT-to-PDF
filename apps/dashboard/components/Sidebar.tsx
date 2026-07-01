@@ -96,11 +96,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {renderNavLinks()}
         </div>
 
-        {/* Footer info */}
-        <div className="p-4 border-t border-neutral-950 font-mono text-[9px] text-neutral-600 uppercase tracking-widest flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-neutral-600 rounded-full"></div>
-          <span>Security Level: Auth</span>
-        </div>
       </aside>
     </>
   );

@@ -14,7 +14,7 @@ export interface TrackingData {
   generationDuration: number;
 }
 
-export type TimeRange = '24h' | '7d' | '14d' | '28d' | '90d' | 'this-month' | 'last-month' | 'all-time';
+export type TimeRange = 'today' | '24h' | '7d' | '28d' | '90d' | '12m' | 'all-time';
 
 export interface TelemetryPayload {
   schemaVersion?: number;
@@ -127,6 +127,8 @@ export interface ChartDataPoint {
   exports: number;
   successes: number;
   failures: number;
+  visitors: number;
+  sessions: number;
   avgDuration?: number;
 }
 
@@ -192,14 +194,20 @@ export interface PerformanceMetrics {
   avgRenderTime: number;
   successRate: number;
   failureRate: number;
+  latencyBuckets: DimensionCount[];
+  pdfSizeBuckets: DimensionCount[];
+  failureTimeline: Array<{ label: string; failures: number }>;
   failureStageBreakdown: DimensionCount[];
   failureReasonBreakdown: DimensionCount[];
+  slowestExports: Array<{ id: string; exportSizeBucket: string | null; generationDuration: number }>;
+  fastestExports: Array<{ id: string; exportSizeBucket: string | null; generationDuration: number }>;
   deployments: Array<{ version: string; successRate: number; avgDuration: number; exportsCount: number }>;
   systemHealth: Array<{ timestamp: Date; dbLatency: number; redisLatency: number; apiLatency: number; errorRate: number }>;
 }
 
 export interface FounderInsight {
   id: string;
+  period: 'Today' | 'Last 7 Days' | 'Last 28 Days';
   title: string;
   description: string;
   type: 'success' | 'warning' | 'info';
@@ -249,49 +257,41 @@ export async function checkDbStatus(): Promise<'CONNECTED' | 'DISCONNECTED'> {
 /**
  * Resolves range string into start/end dates.
  */
-export function resolveTimeRange(range: string): { start: Date; end: Date; interval: 'hour' | 'day' | 'month' } {
+export function resolveTimeRange(range: string): { start: Date; end: Date; interval: 'hour' | 'day' | 'week' | 'month' } {
   const now = new Date();
   let start = new Date(0);
   let end = new Date(now);
-  let interval: 'hour' | 'day' | 'month' = 'day';
+  let interval: 'hour' | 'day' | 'week' | 'month' = 'day';
 
   switch (range) {
+    case 'today': {
+      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+      interval = 'hour';
+      break;
+    }
     case '24h': {
       start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       interval = 'hour';
       break;
     }
-    case '7d': {
-      start = new Date(now);
-      start.setUTCDate(now.getUTCDate() - 7);
-      start.setUTCHours(0, 0, 0, 0);
-      break;
-    }
-    case '14d': {
-      start = new Date(now);
-      start.setUTCDate(now.getUTCDate() - 14);
-      start.setUTCHours(0, 0, 0, 0);
-      break;
-    }
+    case '7d':
     case '28d': {
       start = new Date(now);
-      start.setUTCDate(now.getUTCDate() - 28);
+      start.setUTCDate(now.getUTCDate() - (range === '7d' ? 7 : 28));
       start.setUTCHours(0, 0, 0, 0);
+      interval = 'day';
       break;
     }
     case '90d': {
       start = new Date(now);
       start.setUTCDate(now.getUTCDate() - 90);
       start.setUTCHours(0, 0, 0, 0);
+      interval = 'week';
       break;
     }
-    case 'this-month': {
-      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-      break;
-    }
-    case 'last-month': {
-      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0));
-      end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999));
+    case '12m': {
+      start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1, 0, 0, 0, 0));
+      interval = 'month';
       break;
     }
     case 'all-time':
@@ -303,6 +303,57 @@ export function resolveTimeRange(range: string): { start: Date; end: Date; inter
   }
 
   return { start, end, interval };
+}
+
+export function resolveComparisonRange(range: string): { start: Date; end: Date } {
+  const current = resolveTimeRange(range);
+  const durationMs = Math.max(1, current.end.getTime() - current.start.getTime());
+  const end = new Date(current.start.getTime());
+  const start = new Date(end.getTime() - durationMs);
+  return { start, end };
+}
+
+export function formatPercentageChange(currentValue: number, previousValue: number): number {
+  if (previousValue === 0) {
+    return currentValue > 0 ? 100 : 0;
+  }
+
+  return Math.round(((currentValue - previousValue) / previousValue) * 1000) / 10;
+}
+
+const countryDisplayNames = typeof Intl !== 'undefined' && 'DisplayNames' in Intl
+  ? new Intl.DisplayNames(['en'], { type: 'region' })
+  : null;
+
+export function normalizeCountryName(value?: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const upper = trimmed.toUpperCase();
+  if (upper.length <= 3) {
+    const resolved = countryDisplayNames?.of(upper);
+    if (resolved && resolved.toUpperCase() !== upper) {
+      return resolved;
+    }
+  }
+
+  if (/^[A-Z]{2,3}$/.test(upper)) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+export function formatLocationLabel(city?: string | null, country?: string | null): string | null {
+  const normalizedCity = city?.trim();
+  const normalizedCountry = normalizeCountryName(country);
+
+  if (normalizedCity && normalizedCountry) return `${normalizedCity}, ${normalizedCountry}`;
+  if (normalizedCity) return normalizedCity;
+  if (normalizedCountry) return normalizedCountry;
+  return null;
 }
 
 /**
@@ -1252,8 +1303,13 @@ export async function getPerformanceMetrics(range: string): Promise<PerformanceM
     avgRenderTime: 0.0,
     successRate: 100,
     failureRate: 0,
+    latencyBuckets: [],
+    pdfSizeBuckets: [],
+    failureTimeline: [],
     failureStageBreakdown: [],
     failureReasonBreakdown: [],
+    slowestExports: [],
+    fastestExports: [],
     deployments: [],
     systemHealth: []
   };
@@ -1293,7 +1349,7 @@ export async function getPerformanceMetrics(range: string): Promise<PerformanceM
     const successRate = total > 0 ? (successes / total) * 100 : 100;
     const failureRate = total > 0 ? (failures / total) * 100 : 0;
 
-    const [stages, reasons, deploys, healthLogs] = await Promise.all([
+    const [stages, reasons, deploys, healthLogs, latencyBuckets, pdfSizeBuckets, failureTimeline, slowestExports, fastestExports] = await Promise.all([
       db.exportEvent.groupBy({
         by: ['failureStage'],
         _count: { id: true },
@@ -1322,6 +1378,37 @@ export async function getPerformanceMetrics(range: string): Promise<PerformanceM
           apiLatency: true,
           errorRate: true
         }
+      }),
+      db.exportEvent.groupBy({
+        by: ['exportDurationBucket'],
+        _count: { id: true },
+        where: { timestamp: { gte: start, lte: end }, success: true },
+        orderBy: { _count: { id: 'desc' } }
+      }),
+      db.exportEvent.groupBy({
+        by: ['exportSizeBucket'],
+        _count: { id: true },
+        where: { timestamp: { gte: start, lte: end }, success: true },
+        orderBy: { _count: { id: 'desc' } }
+      }),
+      db.$queryRaw`
+        SELECT DATE_TRUNC('day', timestamp) AS period, COUNT(*)::bigint AS failures
+        FROM "ExportEvent"
+        WHERE success = false AND timestamp >= ${start} AND timestamp <= ${end}
+        GROUP BY period
+        ORDER BY period ASC;
+      `,
+      db.exportEvent.findMany({
+        where: { success: true, timestamp: { gte: start, lte: end } },
+        orderBy: { generationDuration: 'desc' },
+        take: 5,
+        select: { id: true, exportSizeBucket: true, generationDuration: true }
+      }),
+      db.exportEvent.findMany({
+        where: { success: true, timestamp: { gte: start, lte: end } },
+        orderBy: { generationDuration: 'asc' },
+        take: 5,
+        select: { id: true, exportSizeBucket: true, generationDuration: true }
       })
     ]);
 
@@ -1352,8 +1439,30 @@ export async function getPerformanceMetrics(range: string): Promise<PerformanceM
       avgRenderTime: Math.round((row.avg_render || 0) * 100) / 100,
       successRate: Math.round(successRate * 100) / 100,
       failureRate: Math.round(failureRate * 100) / 100,
+      latencyBuckets: latencyBuckets.map((bucket) => ({
+        name: bucket.exportDurationBucket || 'Unspecified',
+        count: bucket._count.id
+      })),
+      pdfSizeBuckets: pdfSizeBuckets.map((bucket) => ({
+        name: bucket.exportSizeBucket || 'Unspecified',
+        count: bucket._count.id
+      })),
+      failureTimeline: (failureTimeline as Array<{ period: Date; failures: bigint }>).map((item) => ({
+        label: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(item.period)),
+        failures: Number(item.failures)
+      })),
       failureStageBreakdown: stages.map(s => ({ name: s.failureStage || 'Unknown', count: s._count.id })),
       failureReasonBreakdown: reasons.map(r => ({ name: r.failureReason || 'Unknown', count: r._count.id })),
+      slowestExports: slowestExports.map((item) => ({
+        id: item.id,
+        exportSizeBucket: item.exportSizeBucket,
+        generationDuration: Math.round(item.generationDuration * 100) / 100
+      })),
+      fastestExports: fastestExports.map((item) => ({
+        id: item.id,
+        exportSizeBucket: item.exportSizeBucket,
+        generationDuration: Math.round(item.generationDuration * 100) / 100
+      })),
       deployments,
       systemHealth: healthLogs.map(h => ({
         timestamp: h.timestamp,
@@ -1392,6 +1501,36 @@ export async function getExportExplorer(filters: any): Promise<{ logs: any[]; to
       where.country = { equals: filters.country, mode: 'insensitive' };
     }
 
+    if (filters.city && filters.city !== 'all') {
+      where.city = { equals: filters.city, mode: 'insensitive' };
+    }
+
+    if (filters.exportSource && filters.exportSource !== 'all') {
+      where.exportSource = { equals: filters.exportSource, mode: 'insensitive' };
+    }
+
+    if (filters.trafficSource && filters.trafficSource !== 'all') {
+      where.trafficSource = { equals: filters.trafficSource, mode: 'insensitive' };
+    }
+
+    if (filters.sessionId) {
+      where.sessionId = { contains: filters.sessionId, mode: 'insensitive' };
+    }
+
+    if (filters.visitorId) {
+      where.anonymousVisitorId = { contains: filters.visitorId, mode: 'insensitive' };
+    }
+
+    if (filters.durationBucket && filters.durationBucket !== 'all') {
+      where.exportDurationBucket = { equals: filters.durationBucket, mode: 'insensitive' };
+    }
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.timestamp = {};
+      if (filters.dateFrom) where.timestamp.gte = new Date(filters.dateFrom);
+      if (filters.dateTo) where.timestamp.lte = new Date(filters.dateTo);
+    }
+
     if (filters.search) {
       where.OR = [
         { id: { contains: filters.search, mode: 'insensitive' } },
@@ -1399,7 +1538,11 @@ export async function getExportExplorer(filters: any): Promise<{ logs: any[]; to
         { normalizedReferrer: { contains: filters.search, mode: 'insensitive' } },
         { country: { contains: filters.search, mode: 'insensitive' } },
         { city: { contains: filters.search, mode: 'insensitive' } },
-        { failureReason: { contains: filters.search, mode: 'insensitive' } }
+        { failureReason: { contains: filters.search, mode: 'insensitive' } },
+        { sessionId: { contains: filters.search, mode: 'insensitive' } },
+        { anonymousVisitorId: { contains: filters.search, mode: 'insensitive' } },
+        { exportSource: { contains: filters.search, mode: 'insensitive' } },
+        { trafficSource: { contains: filters.search, mode: 'insensitive' } }
       ];
     }
 
@@ -1449,114 +1592,61 @@ export async function getExportExplorer(filters: any): Promise<{ logs: any[]; to
  */
 export async function getFounderInsights(): Promise<FounderInsight[]> {
   try {
-    const insights: FounderInsight[] = [];
+    const buildWindowInsights = async (range: 'today' | '7d' | '28d', periodLabel: 'Today' | 'Last 7 Days' | 'Last 28 Days') => {
+      const [current, previous, browsers, countries, referrers] = await Promise.all([
+        getOverviewSnapshot(range),
+        getOverviewSnapshot(range, resolveComparisonRange(range)),
+        getDimensionBreakdown('browser', range),
+        getDimensionBreakdown('country', range),
+        getDimensionBreakdown('normalizedReferrer', range)
+      ]);
 
-    const [aiStats, normalGoogleStats] = await Promise.all([
-      db.exportEvent.aggregate({
-        _count: { id: true },
-        where: { normalizedReferrer: 'Google AI Overview', success: true }
-      }),
-      db.exportEvent.aggregate({
-        _count: { id: true },
-        where: { normalizedReferrer: 'Google Search', success: true }
-      })
+      const topBrowser = browsers[0]?.name || 'Unknown';
+      const topCountry = countries[0]?.name || 'Unknown';
+      const topReferrer = referrers[0]?.name || 'Unknown';
+      const exportDelta = formatPercentageChange(current.exportsCount, previous.exportsCount);
+      const successDelta = formatPercentageChange(current.successRate, previous.successRate);
+      const latencyDelta = formatPercentageChange(current.avgDuration, previous.avgDuration);
+
+      return [
+        {
+          id: `${range}-exports`,
+          period: periodLabel,
+          title: `${periodLabel} exports ${exportDelta >= 0 ? 'increased' : 'decreased'} ${Math.abs(exportDelta).toFixed(1)}%`,
+          description: `${current.exportsCount.toLocaleString()} exports completed in ${periodLabel.toLowerCase()} versus ${previous.exportsCount.toLocaleString()} in the previous period.`,
+          type: exportDelta >= 0 ? 'success' : 'warning'
+        },
+        {
+          id: `${range}-success`,
+          period: periodLabel,
+          title: `Success rate ${successDelta >= 0 ? 'improved' : 'softened'} ${Math.abs(successDelta).toFixed(1)}%`,
+          description: `The period ended at ${current.successRate.toFixed(1)}% successful exports with ${current.avgDuration.toFixed(1)}s average latency.`,
+          type: successDelta >= 0 ? 'success' : 'warning'
+        },
+        {
+          id: `${range}-country`,
+          period: periodLabel,
+          title: `Largest country: ${topCountry}`,
+          description: `${topCountry} led demand, while ${topBrowser} was the most active browser and ${topReferrer} was the largest acquisition source.`,
+          type: 'info'
+        },
+        {
+          id: `${range}-latency`,
+          period: periodLabel,
+          title: `Latency ${latencyDelta >= 0 ? 'worsened' : 'improved'} ${Math.abs(latencyDelta).toFixed(1)}%`,
+          description: `Average export latency is ${current.avgDuration.toFixed(1)}s compared with ${previous.avgDuration.toFixed(1)}s in the prior window.`,
+          type: latencyDelta <= 0 ? 'success' : 'warning'
+        }
+      ] as FounderInsight[];
+    };
+
+    const [todayInsights, weekInsights, monthInsights] = await Promise.all([
+      buildWindowInsights('today', 'Today'),
+      buildWindowInsights('7d', 'Last 7 Days'),
+      buildWindowInsights('28d', 'Last 28 Days')
     ]);
 
-    const aiCount = aiStats._count.id || 0;
-    const normalCount = normalGoogleStats._count.id || 0;
-
-    if (aiCount > 0 && normalCount > 0) {
-      const multiplier = Math.round((aiCount / Math.max(1, normalCount)) * 10) / 10;
-      insights.push({
-        id: 'insight-1',
-        title: 'High Intent Traffic from Google AI Overview',
-        description: `Users arriving via Google AI Overview converted ${multiplier || 2.4}× better into completed PDF exports compared to organic Google Search.`,
-        type: 'success'
-      });
-    } else {
-      insights.push({
-        id: 'insight-1',
-        title: 'High Intent Traffic from Google AI Overview',
-        description: 'Google AI Overview referral visits continue to demonstrate 2.4× higher conversion ratios than general search queries.',
-        type: 'success'
-      });
-    }
-
-    const [chromeAvg, overallAvg] = await Promise.all([
-      db.exportEvent.aggregate({
-        _avg: { generationDuration: true },
-        where: { browser: 'Chrome', success: true }
-      }),
-      db.exportEvent.aggregate({
-        _avg: { generationDuration: true },
-        where: { success: true }
-      })
-    ]);
-
-    const chromeSpeed = chromeAvg._avg.generationDuration || 1.8;
-    const overallSpeed = overallAvg._avg.generationDuration || 2.5;
-
-    if (chromeSpeed < overallSpeed) {
-      const percentage = Math.round(((overallSpeed - chromeSpeed) / overallSpeed) * 100);
-      insights.push({
-        id: 'insight-2',
-        title: 'Rendering Speed Optimizations',
-        description: `Chrome browser engine completed PDF exports ${percentage}% faster than Safari and Firefox, indicating optimal V8 compatibility.`,
-        type: 'info'
-      });
-    } else {
-      insights.push({
-        id: 'insight-2',
-        title: 'Browser Speed Optimizations',
-        description: 'Chrome engines execute rendering 35% faster than Firefox/Safari due to headless print formatting efficiencies.',
-        type: 'info'
-      });
-    }
-
-    const [totalExports, indiaExports] = await Promise.all([
-      db.exportEvent.count(),
-      db.exportEvent.count({ where: { country: 'India' } })
-    ]);
-
-    if (totalExports > 0) {
-      const ratio = Math.round((indiaExports / totalExports) * 100);
-      insights.push({
-        id: 'insight-3',
-        title: 'Regional Activity Concentration',
-        description: `India remains the platform's largest geographic market, driving ${ratio || 74}% of total completed PDF exports.`,
-        type: 'info'
-      });
-    } else {
-      insights.push({
-        id: 'insight-3',
-        title: 'Regional Activity Concentration',
-        description: 'India continues to generate 74% of the platform\'s export demand across all chat lengths.',
-        type: 'info'
-      });
-    }
-
-    insights.push({
-      id: 'insight-4',
-      title: 'Targeted Landing Page Success',
-      description: 'The "/chatgpt-to-pdf" landing path converts visitor sessions to exports 41% higher than the default homepage.',
-      type: 'success'
-    });
-
-    insights.push({
-      id: 'insight-5',
-      title: 'Parser Regression Warnings',
-      description: 'Document parser crash rates rose by 12% following deployment version v2.1.3, specifically on tables formatting.',
-      type: 'warning'
-    });
-
-    insights.push({
-      id: 'insight-6',
-      title: 'Returning Visitor Document Output',
-      description: 'Returning visitors export 3× more PDF documents per session compared to one-off anonymous guest visits.',
-      type: 'success'
-    });
-
-    return insights;
+    return [...todayInsights, ...weekInsights, ...monthInsights];
   } catch (error) {
     console.error('[Analytics] getFounderInsights failed:', error);
     return [];
@@ -1750,6 +1840,8 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
           COUNT(*)::bigint AS exports,
           COUNT(*) FILTER (WHERE success = true)::bigint AS successes,
           COUNT(*) FILTER (WHERE success = false)::bigint AS failures,
+          COUNT(DISTINCT "anonymousVisitorId")::bigint AS visitors,
+          COUNT(DISTINCT "sessionId")::bigint AS sessions,
           COALESCE(AVG("generationDuration") FILTER (WHERE success = true), 0.0)::float AS avg_duration
         FROM "ExportEvent"
         WHERE timestamp >= ${start} AND timestamp <= ${end}
@@ -1763,6 +1855,23 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
           COUNT(*)::bigint AS exports,
           COUNT(*) FILTER (WHERE success = true)::bigint AS successes,
           COUNT(*) FILTER (WHERE success = false)::bigint AS failures,
+          COUNT(DISTINCT "anonymousVisitorId")::bigint AS visitors,
+          COUNT(DISTINCT "sessionId")::bigint AS sessions,
+          COALESCE(AVG("generationDuration") FILTER (WHERE success = true), 0.0)::float AS avg_duration
+        FROM "ExportEvent"
+        WHERE timestamp >= ${start} AND timestamp <= ${end}
+        GROUP BY period
+        ORDER BY period ASC;
+      `;
+    } else if (interval === 'week') {
+      result = await db.$queryRaw`
+        SELECT
+          DATE_TRUNC('week', timestamp) AS period,
+          COUNT(*)::bigint AS exports,
+          COUNT(*) FILTER (WHERE success = true)::bigint AS successes,
+          COUNT(*) FILTER (WHERE success = false)::bigint AS failures,
+          COUNT(DISTINCT "anonymousVisitorId")::bigint AS visitors,
+          COUNT(DISTINCT "sessionId")::bigint AS sessions,
           COALESCE(AVG("generationDuration") FILTER (WHERE success = true), 0.0)::float AS avg_duration
         FROM "ExportEvent"
         WHERE timestamp >= ${start} AND timestamp <= ${end}
@@ -1776,6 +1885,8 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
           COUNT(*)::bigint AS exports,
           COUNT(*) FILTER (WHERE success = true)::bigint AS successes,
           COUNT(*) FILTER (WHERE success = false)::bigint AS failures,
+          COUNT(DISTINCT "anonymousVisitorId")::bigint AS visitors,
+          COUNT(DISTINCT "sessionId")::bigint AS sessions,
           COALESCE(AVG("generationDuration") FILTER (WHERE success = true), 0.0)::float AS avg_duration
         FROM "ExportEvent"
         WHERE timestamp >= ${start} AND timestamp <= ${end}
@@ -1788,6 +1899,8 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
       let label = '';
       if (interval === 'hour') {
         label = new Date(r.period).toISOString().replace('T', ' ').substring(11, 16);
+      } else if (interval === 'week') {
+        label = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(r.period));
       } else if (interval === 'month') {
         label = new Date(r.period).toISOString().substring(0, 7);
       } else {
@@ -1799,6 +1912,8 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
         exports: Number(r.exports),
         successes: Number(r.successes),
         failures: Number(r.failures),
+        visitors: Number(r.visitors || 0),
+        sessions: Number(r.sessions || 0),
         avgDuration: Math.round((r.avg_duration || 0.0) * 100) / 100
       };
     });
@@ -1809,13 +1924,13 @@ export async function getTrendData(range: string): Promise<ChartDataPoint[]> {
 }
 
 export async function getDimensionBreakdown(
-  dimension: 'browser' | 'deviceType' | 'operatingSystem' | 'referrer' | 'country' | 'city' | 'landingPath' | 'normalizedReferrer',
+  dimension: 'browser' | 'browserVersion' | 'deviceType' | 'operatingSystem' | 'osVersion' | 'referrer' | 'country' | 'city' | 'landingPath' | 'normalizedReferrer' | 'exportSource' | 'trafficSource' | 'language' | 'timezone' | 'screenSizeBucket',
   range: string
 ): Promise<DimensionCount[]> {
   const { start, end } = resolveTimeRange(range);
 
   try {
-    const validDimensions = ['browser', 'deviceType', 'operatingSystem', 'referrer', 'country', 'city', 'landingPath', 'normalizedReferrer'];
+    const validDimensions = ['browser', 'browserVersion', 'deviceType', 'operatingSystem', 'osVersion', 'referrer', 'country', 'city', 'landingPath', 'normalizedReferrer', 'exportSource', 'trafficSource', 'language', 'timezone', 'screenSizeBucket'];
     if (!validDimensions.includes(dimension)) {
       throw new Error(`Invalid dimension: ${dimension}`);
     }
@@ -1828,14 +1943,196 @@ export async function getDimensionBreakdown(
       take: 10
     });
 
-    return grouped.map(g => ({
-      name: (g[dimension as any] as string) || 'Unknown',
-      count: g._count.id
-    }));
+    return grouped
+      .map(g => {
+        const rawValue = g[dimension as any] as string | null | undefined;
+        const normalizedValue = dimension === 'country'
+          ? normalizeCountryName(rawValue)
+          : rawValue?.trim() || null;
+
+        return {
+          name: normalizedValue,
+          count: g._count.id
+        };
+      })
+      .filter(item => !!item.name);
   } catch (error) {
     console.error(`[Analytics] getDimensionBreakdown failed for ${dimension}:`, error);
     return [];
   }
+}
+
+export async function getLocationBreakdown(range: string): Promise<DimensionCount[]> {
+  const { start, end } = resolveTimeRange(range);
+
+  try {
+    const grouped = await db.exportEvent.groupBy({
+      by: ['city', 'country'],
+      _count: { id: true },
+      where: { timestamp: { gte: start, lte: end } },
+      orderBy: { _count: { id: 'desc' } },
+      take: 10
+    });
+
+    return grouped
+      .map(g => ({
+        name: formatLocationLabel(g.city, g.country) || '',
+        count: g._count.id
+      }))
+      .filter(item => item.name !== '');
+  } catch (error) {
+    console.error('[Analytics] getLocationBreakdown failed:', error);
+    return [];
+  }
+}
+
+export async function getDimensionPerformanceBreakdown(
+  dimension: 'browser' | 'browserVersion' | 'deviceType' | 'operatingSystem' | 'osVersion' | 'referrer' | 'country' | 'landingPath' | 'normalizedReferrer' | 'exportSource' | 'trafficSource' | 'language' | 'timezone' | 'screenSizeBucket',
+  range: string
+): Promise<Array<{ name: string; exports: number; successRate: number; avgLatency: number }>> {
+  const { start, end } = resolveTimeRange(range);
+
+  try {
+    const [allRows, successRows] = await Promise.all([
+      db.exportEvent.groupBy({
+        by: [dimension as any],
+        _count: { id: true },
+        _avg: { generationDuration: true },
+        where: { timestamp: { gte: start, lte: end } },
+        orderBy: { _count: { id: 'desc' } },
+        take: 10
+      }),
+      db.exportEvent.groupBy({
+        by: [dimension as any],
+        _count: { id: true },
+        where: { timestamp: { gte: start, lte: end }, success: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 10
+      })
+    ]);
+
+    const successMap = new Map<string, number>();
+    successRows.forEach((row) => {
+      const key = (row[dimension as any] as string | null | undefined) || '';
+      successMap.set(key, row._count.id);
+    });
+
+    return allRows
+      .map((row) => {
+        const rawValue = row[dimension as any] as string | null | undefined;
+        const normalizedValue = dimension === 'country'
+          ? normalizeCountryName(rawValue)
+          : rawValue?.trim() || null;
+
+        if (!normalizedValue) return null;
+
+        const count = row._count.id;
+        const successCount = successMap.get(rawValue || '') || 0;
+
+        return {
+          name: normalizedValue,
+          exports: count,
+          successRate: count > 0 ? Math.round((successCount / count) * 1000) / 10 : 100,
+          avgLatency: Math.round((row._avg.generationDuration || 0) * 100) / 100
+        };
+      })
+      .filter((item): item is { name: string; exports: number; successRate: number; avgLatency: number } => !!item);
+  } catch (error) {
+    console.error(`[Analytics] getDimensionPerformanceBreakdown failed for ${dimension}:`, error);
+    return [];
+  }
+}
+
+export async function getLocationPerformanceBreakdown(range: string): Promise<Array<{ name: string; exports: number; successRate: number; avgLatency: number }>> {
+  const { start, end } = resolveTimeRange(range);
+
+  try {
+    const [allRows, successRows] = await Promise.all([
+      db.exportEvent.groupBy({
+        by: ['city', 'country'],
+        _count: { id: true },
+        _avg: { generationDuration: true },
+        where: { timestamp: { gte: start, lte: end } },
+        orderBy: { _count: { id: 'desc' } },
+        take: 10
+      }),
+      db.exportEvent.groupBy({
+        by: ['city', 'country'],
+        _count: { id: true },
+        where: { timestamp: { gte: start, lte: end }, success: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 10
+      })
+    ]);
+
+    const successMap = new Map<string, number>();
+    successRows.forEach((row) => {
+      const key = `${row.city || ''}__${row.country || ''}`;
+      successMap.set(key, row._count.id);
+    });
+
+    return allRows
+      .map((row) => {
+        const name = formatLocationLabel(row.city, row.country);
+        if (!name) return null;
+
+        const count = row._count.id;
+        const successCount = successMap.get(`${row.city || ''}__${row.country || ''}`) || 0;
+
+        return {
+          name,
+          exports: count,
+          successRate: count > 0 ? Math.round((successCount / count) * 1000) / 10 : 100,
+          avgLatency: Math.round((row._avg.generationDuration || 0) * 100) / 100
+        };
+      })
+      .filter((item): item is { name: string; exports: number; successRate: number; avgLatency: number } => !!item);
+  } catch (error) {
+    console.error('[Analytics] getLocationPerformanceBreakdown failed:', error);
+    return [];
+  }
+}
+
+interface OverviewSnapshot {
+  visitorsCount: number;
+  sessionsCount: number;
+  exportsCount: number;
+  conversionRate: number;
+  returningVisitorsRate: number;
+  avgDuration: number;
+  successRate: number;
+}
+
+export async function getOverviewSnapshot(range: string, bounds?: { start: Date; end: Date }): Promise<OverviewSnapshot> {
+  const { start, end } = bounds || resolveTimeRange(range);
+
+  const [visitors, sessions, exportsCount, successCount, avgDurationResult, returningCount] = await Promise.all([
+    db.visitor.count({ where: { lastVisit: { gte: start, lte: end } } }),
+    db.session.count({ where: { started: { gte: start, lte: end } } }),
+    db.exportEvent.count({ where: { timestamp: { gte: start, lte: end } } }),
+    db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: true } }),
+    db.exportEvent.aggregate({
+      _avg: { generationDuration: true },
+      where: { timestamp: { gte: start, lte: end }, success: true }
+    }),
+    db.visitor.count({
+      where: { lastVisit: { gte: start, lte: end }, returningVisitor: true }
+    })
+  ]);
+
+  const conversionRate = sessions > 0 ? (successCount / sessions) * 100 : 0.0;
+  const returningRate = visitors > 0 ? (returningCount / visitors) * 100 : 0.0;
+  const successRate = exportsCount > 0 ? (successCount / exportsCount) * 100 : 100.0;
+
+  return {
+    visitorsCount: visitors,
+    sessionsCount: sessions,
+    exportsCount,
+    conversionRate: Math.round(conversionRate * 10) / 10,
+    returningVisitorsRate: Math.round(returningRate * 10) / 10,
+    avgDuration: Math.round((avgDurationResult._avg.generationDuration || 0.0) * 100) / 100,
+    successRate: Math.round(successRate * 10) / 10
+  };
 }
 
 export async function getExportsLogs(filters: any): Promise<{ logs: any[], totalCount: number }> {

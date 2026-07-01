@@ -1,8 +1,7 @@
 import React from 'react';
 import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
-import { db } from '@repo/db';
-import { getPerformanceMetrics, resolveTimeRange } from '@repo/analytics';
+import { getPerformanceMetrics } from '@repo/analytics';
 
 export const revalidate = 0;
 
@@ -12,251 +11,185 @@ interface PageProps {
   }>;
 }
 
+function SectionTable({
+  title,
+  rows,
+  emptyMessage,
+  columns
+}: {
+  title: string;
+  rows: Array<Record<string, any>>;
+  emptyMessage: string;
+  columns: Array<{ key: string; label: string; align?: 'left' | 'right' }>;
+}) {
+  return (
+    <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+      <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">{title}</h4>
+      <div className="border border-neutral-900 rounded overflow-hidden text-xs bg-black">
+        {rows.length === 0 ? (
+          <div className="p-6 text-center text-neutral-600">{emptyMessage}</div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
+                {columns.map((column) => (
+                  <th key={column.key} className={`px-4 py-2 ${column.align === 'right' ? 'text-right' : ''}`}>
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-950 text-neutral-400">
+              {rows.map((row, index) => (
+                <tr key={index} className="hover:bg-neutral-950/10">
+                  {columns.map((column) => (
+                    <td key={column.key} className={`px-4 py-2 ${column.align === 'right' ? 'text-right' : 'text-white font-medium'}`}>
+                      {row[column.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default async function PerformancePage({ searchParams }: PageProps) {
   const params = await searchParams;
   const cookieStore = await cookies();
   const range = params.range || cookieStore.get('analytics_range')?.value || '7d';
 
-  const { start, end } = resolveTimeRange(range);
+  const perf = await getPerformanceMetrics(range);
 
-  // Fetch core performance percentiles, buckets, comparison stats, and lists
-  const [perf, durationBuckets, engineComparison, slowest, fastest] = await Promise.all([
-    getPerformanceMetrics(range),
-    db.exportEvent.groupBy({
-      by: ['exportDurationBucket'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end }, success: true },
-      orderBy: { _count: { id: 'desc' } }
-    }),
-    db.exportEvent.groupBy({
-      by: ['exportEngineVersion'],
-      _count: { id: true },
-      _avg: { generationDuration: true },
-      where: { timestamp: { gte: start, lte: end }, success: true },
-      orderBy: { _count: { id: 'desc' } }
-    }),
-    db.exportEvent.findMany({
-      where: { success: true, timestamp: { gte: start, lte: end } },
-      orderBy: { generationDuration: 'desc' },
-      take: 5
-    }),
-    db.exportEvent.findMany({
-      where: { success: true, timestamp: { gte: start, lte: end } },
-      orderBy: { generationDuration: 'asc' },
-      take: 5
-    })
-  ]);
+  const latencyBuckets = ['0–2 sec', '2–5 sec', '5–10 sec', '10–20 sec', '20+'].map((label) => ({
+    name: label,
+    count: perf.latencyBuckets.find((bucket) => bucket.name === label)?.count || 0
+  }));
 
-  const stats = [
-    { name: 'Average Latency', value: `${perf.avgDuration}s`, detail: 'Mean generation time' },
-    { name: 'Median (P50)', value: `${perf.median}s`, detail: '50th percentile latency' },
-    { name: '95th Percentile (P95)', value: `${perf.p95}s`, detail: '95th percentile latency' },
-    { name: '99th Percentile (P99)', value: `${perf.p99}s`, detail: '99th percentile latency' }
-  ];
+  const pdfSizeBuckets = ['0–500 KB', '500KB–1MB', '1MB–5MB', '5MB+'].map((label) => ({
+    name: label,
+    count: perf.pdfSizeBuckets.find((bucket) => bucket.name === label)?.count || 0
+  }));
+
+  const deploymentRows = perf.deployments.map((deployment) => ({
+    version: deployment.version,
+    exports: deployment.exportsCount.toLocaleString(),
+    successRate: `${deployment.successRate.toFixed(1)}%`,
+    avgDuration: `${deployment.avgDuration.toFixed(2)}s`
+  }));
 
   return (
     <div className="space-y-6 md:space-y-8 select-none font-mono">
-      
-      {/* Title */}
       <div className="space-y-1">
-        <h2 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Performance Diagnostics</h2>
-        <p className="text-xs text-neutral-600 font-mono">Execution percentiles, bucket classifications, and engine regression checks.</p>
+        <h2 className="text-xs uppercase tracking-widest text-neutral-400">Performance Diagnostics</h2>
+        <p className="text-xs text-neutral-600">{range.toUpperCase()} selected. Buckets, failures, and outliers are sourced from one shared performance snapshot.</p>
       </div>
 
-      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <Card key={s.name} className="bg-black border border-neutral-900 rounded p-4">
-            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">{s.name}</p>
-            <p className="text-lg font-bold text-white mt-1">{s.value}</p>
-            <p className="text-[8px] text-neutral-600 mt-0.5">{s.detail}</p>
+        {[
+          { name: 'Average', value: `${perf.avgDuration.toFixed(2)}s` },
+          { name: 'Median', value: `${perf.median.toFixed(2)}s` },
+          { name: 'P95', value: `${perf.p95.toFixed(2)}s` },
+          { name: 'P99', value: `${perf.p99.toFixed(2)}s` }
+        ].map((item) => (
+          <Card key={item.name} className="bg-black border border-neutral-900 rounded p-4">
+            <p className="text-[10px] uppercase tracking-widest text-neutral-500">{item.name}</p>
+            <p className="mt-1 text-lg font-bold text-white">{item.value}</p>
+            <p className="mt-1 text-[10px] text-neutral-600 uppercase tracking-widest">Compared to the selected period only</p>
           </Card>
         ))}
       </div>
 
-      {/* Buckets & Comparisons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Export Duration Buckets */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Duration Buckets</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Latency Range</th>
-                  <th className="px-4 py-2 text-right">Exports Count</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {durationBuckets.map((bucket, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{bucket.exportDurationBucket || 'Unknown'}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{bucket._count.id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Engine Version Comparison */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Engine Versions</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Engine version</th>
-                  <th className="px-4 py-2">Exports</th>
-                  <th className="px-4 py-2 text-right">Avg Latency</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {engineComparison.map((eng, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{eng.exportEngineVersion || 'Legacy'}</td>
-                    <td className="px-4 py-2">{eng._count.id}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{(eng._avg.generationDuration || 0).toFixed(2)}s</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SectionTable
+          title="Latency Distribution"
+          rows={latencyBuckets.map((bucket) => ({ bucket: bucket.name, exports: bucket.count.toLocaleString() }))}
+          emptyMessage="No successful exports in the selected period."
+          columns={[
+            { key: 'bucket', label: 'Latency Range' },
+            { key: 'exports', label: 'Exports', align: 'right' }
+          ]}
+        />
+        <SectionTable
+          title="PDF Size Distribution"
+          rows={pdfSizeBuckets.map((bucket) => ({ bucket: bucket.name, exports: bucket.count.toLocaleString() }))}
+          emptyMessage="No PDF size telemetry in the selected period."
+          columns={[
+            { key: 'bucket', label: 'Size Range' },
+            { key: 'exports', label: 'Exports', align: 'right' }
+          ]}
+        />
       </div>
 
-      {/* Failures stages and reasons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Failure stages */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Failure Stages</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Stage</th>
-                  <th className="px-4 py-2 text-right">Failures</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {perf.failureStageBreakdown.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="p-4 text-center text-neutral-600">[NO_STAGE_FAILURES_LOGGED]</td>
-                  </tr>
-                ) : (
-                  perf.failureStageBreakdown.map((s, i) => (
-                    <tr key={i} className="hover:bg-neutral-950/10">
-                      <td className="px-4 py-2 text-white font-medium">{s.name}</td>
-                      <td className="px-4 py-2 text-right font-bold text-white">{s.count}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Failure reasons */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Failure Reasons</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Failure Reason Log</th>
-                  <th className="px-4 py-2 text-right">Failures</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {perf.failureReasonBreakdown.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="p-4 text-center text-neutral-600">[NO_REASON_FAILURES_LOGGED]</td>
-                  </tr>
-                ) : (
-                  perf.failureReasonBreakdown.map((r, i) => (
-                    <tr key={i} className="hover:bg-neutral-950/10">
-                      <td className="px-4 py-2 text-white font-medium truncate max-w-[200px]">{r.name}</td>
-                      <td className="px-4 py-2 text-right font-bold text-white">{r.count}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SectionTable
+          title="Failure Stages"
+          rows={perf.failureStageBreakdown.map((item) => ({ stage: item.name, failures: item.count.toLocaleString() }))}
+          emptyMessage="No failure stages logged in the selected period."
+          columns={[
+            { key: 'stage', label: 'Stage' },
+            { key: 'failures', label: 'Failures', align: 'right' }
+          ]}
+        />
+        <SectionTable
+          title="Failure Reasons"
+          rows={perf.failureReasonBreakdown.map((item) => ({ reason: item.name, failures: item.count.toLocaleString() }))}
+          emptyMessage="No failure reasons logged in the selected period."
+          columns={[
+            { key: 'reason', label: 'Reason' },
+            { key: 'failures', label: 'Failures', align: 'right' }
+          ]}
+        />
       </div>
 
-      {/* Latency Slowest/Fastest Breakdown Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Slowest Exports */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Slowest Document Generated</h3>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Export ID</th>
-                  <th className="px-4 py-2 text-right">Size Bucket</th>
-                  <th className="px-4 py-2 text-right">Duration</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {slowest.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="p-4 text-center text-neutral-600">[NO_SLOWEST_RECORD_LOGGED]</td>
-                  </tr>
-                ) : (
-                  slowest.map((s, idx) => (
-                    <tr key={idx} className="hover:bg-neutral-950/20 transition-colors">
-                      <td className="px-4 py-2 text-white truncate max-w-[120px] select-all">{s.id}</td>
-                      <td className="px-4 py-2 text-right">{s.exportSizeBucket || 'Unknown'}</td>
-                      <td className="px-4 py-2 text-right text-red-400 font-bold">{s.generationDuration.toFixed(2)}s</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Fastest Exports */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-400">Fastest Document Generated</h3>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Export ID</th>
-                  <th className="px-4 py-2 text-right">Size Bucket</th>
-                  <th className="px-4 py-2 text-right">Duration</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {fastest.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="p-4 text-center text-neutral-600">[NO_FASTEST_RECORD_LOGGED]</td>
-                  </tr>
-                ) : (
-                  fastest.map((f, idx) => (
-                    <tr key={idx} className="hover:bg-neutral-950/20 transition-colors">
-                      <td className="px-4 py-2 text-white truncate max-w-[120px] select-all">{f.id}</td>
-                      <td className="px-4 py-2 text-right">{f.exportSizeBucket || 'Unknown'}</td>
-                      <td className="px-4 py-2 text-right text-emerald-400 font-bold">{f.generationDuration.toFixed(2)}s</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SectionTable
+          title="Slowest Exports"
+          rows={perf.slowestExports.map((item) => ({ id: item.id, bucket: item.exportSizeBucket || 'Telemetry unavailable', duration: `${item.generationDuration.toFixed(2)}s` }))}
+          emptyMessage="No slow exports in the selected period."
+          columns={[
+            { key: 'id', label: 'Export ID' },
+            { key: 'bucket', label: 'Size Bucket' },
+            { key: 'duration', label: 'Duration', align: 'right' }
+          ]}
+        />
+        <SectionTable
+          title="Fastest Exports"
+          rows={perf.fastestExports.map((item) => ({ id: item.id, bucket: item.exportSizeBucket || 'Telemetry unavailable', duration: `${item.generationDuration.toFixed(2)}s` }))}
+          emptyMessage="No fast exports in the selected period."
+          columns={[
+            { key: 'id', label: 'Export ID' },
+            { key: 'bucket', label: 'Size Bucket' },
+            { key: 'duration', label: 'Duration', align: 'right' }
+          ]}
+        />
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SectionTable
+          title={perf.deployments.length > 1 ? 'Engine Versions' : 'Engine Version'}
+          rows={perf.deployments.length > 1 ? deploymentRows : []}
+          emptyMessage={perf.deployments.length > 1 ? 'No engine version comparison available.' : 'Only one engine version is present, so this section is hidden.'}
+          columns={[
+            { key: 'version', label: 'Version' },
+            { key: 'exports', label: 'Exports', align: 'right' },
+            { key: 'successRate', label: 'Success Rate', align: 'right' },
+            { key: 'avgDuration', label: 'Avg Latency', align: 'right' }
+          ]}
+        />
+        <SectionTable
+          title="Failure Timeline"
+          rows={perf.failureTimeline.map((item) => ({ day: item.label, failures: item.failures.toLocaleString() }))}
+          emptyMessage="No failure timeline data in the selected period."
+          columns={[
+            { key: 'day', label: 'Day' },
+            { key: 'failures', label: 'Failures', align: 'right' }
+          ]}
+        />
+      </div>
     </div>
   );
 }

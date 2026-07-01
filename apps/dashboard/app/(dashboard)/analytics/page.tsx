@@ -1,8 +1,14 @@
 import React from 'react';
 import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
-import { db } from '@repo/db';
-import { getExecutiveOverview, getGrowthMetrics, resolveTimeRange } from '@repo/analytics';
+import {
+  getDimensionBreakdown,
+  getDimensionPerformanceBreakdown,
+  getGrowthMetrics,
+  getLocationBreakdown,
+  getLocationPerformanceBreakdown,
+  getOverviewSnapshot
+} from '@repo/analytics';
 
 export const revalidate = 0;
 
@@ -12,378 +18,325 @@ interface PageProps {
   }>;
 }
 
+function SectionTable({
+  title,
+  rows,
+  emptyMessage,
+  columns,
+  description
+}: {
+  title: string;
+  rows: Array<Record<string, any>>;
+  emptyMessage: string;
+  columns: Array<{ key: string; label: string; align?: 'left' | 'right' }>;
+  description?: string;
+}) {
+  return (
+    <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
+      <div>
+        <h3 className="text-xs uppercase tracking-[0.35em] text-neutral-400">{title}</h3>
+        {description && <p className="mt-1 text-[11px] text-neutral-600">{description}</p>}
+      </div>
+      <div className="border border-neutral-900 rounded overflow-hidden text-xs bg-black">
+        {rows.length === 0 ? (
+          <div className="p-6 text-center text-neutral-600">{emptyMessage}</div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-[0.3em]">
+                {columns.map((column) => (
+                  <th key={column.key} className={`px-4 py-2.5 ${column.align === 'right' ? 'text-right' : ''}`}>
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-950 text-neutral-400">
+              {rows.map((row, index) => (
+                <tr key={index} className="hover:bg-neutral-950/20 transition-colors">
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      className={`px-4 py-2.5 ${column.align === 'right' ? 'text-right' : 'text-white font-medium'}`}
+                    >
+                      {row[column.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default async function AnalyticsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const cookieStore = await cookies();
   const range = params.range || cookieStore.get('analytics_range')?.value || '7d';
 
-  const { start, end } = resolveTimeRange(range);
-
-  // Fetch telemetry breakdowns directly for dashboard widgets
-  const [
-    overview,
-    growth,
-    browsers,
-    oss,
-    devices,
-    screenBuckets,
-    languages,
-    timezones,
-    darkModes,
-    countries,
-    cities,
-    exportSources,
-    landingPages,
-    heatmapRaw
-  ] = await Promise.all([
-    getExecutiveOverview(range),
+  const [overview, growth, locations, locationPerformance, browsers, browserVersions, oss, osVersions, devices, screenBuckets, languages, timezones, countries, cities, exportSources, landingPages, trafficSources, referrers] = await Promise.all([
+    getOverviewSnapshot(range),
     getGrowthMetrics(range),
-    db.exportEvent.groupBy({
-      by: ['browser'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['operatingSystem'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['deviceType'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } }
-    }),
-    db.exportEvent.groupBy({
-      by: ['screenSizeBucket'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['language'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['timezone'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['darkMode'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } }
-    }),
-    db.exportEvent.groupBy({
-      by: ['country'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['city'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['exportSource'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } }
-    }),
-    db.exportEvent.groupBy({
-      by: ['landingPath'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5
-    }),
-    db.exportEvent.groupBy({
-      by: ['dayOfWeek', 'localHour'],
-      _count: { id: true },
-      where: { timestamp: { gte: start, lte: end } }
-    })
+    getLocationBreakdown(range),
+    getLocationPerformanceBreakdown(range),
+    getDimensionPerformanceBreakdown('browser', range),
+    getDimensionBreakdown('browserVersion', range),
+    getDimensionPerformanceBreakdown('operatingSystem', range),
+    getDimensionBreakdown('osVersion', range),
+    getDimensionPerformanceBreakdown('deviceType', range),
+    getDimensionPerformanceBreakdown('screenSizeBucket', range),
+    getDimensionPerformanceBreakdown('language', range),
+    getDimensionPerformanceBreakdown('timezone', range),
+    getDimensionPerformanceBreakdown('country', range),
+    getDimensionPerformanceBreakdown('city', range),
+    getDimensionPerformanceBreakdown('exportSource', range),
+    getDimensionPerformanceBreakdown('landingPath', range),
+    getDimensionPerformanceBreakdown('trafficSource', range),
+    getDimensionPerformanceBreakdown('normalizedReferrer', range)
   ]);
 
-  // Construct Heatmap table values
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const hourBlocks = [
-    { name: 'Night (0-6)', min: 0, max: 5 },
-    { name: 'Morning (6-12)', min: 6, max: 11 },
-    { name: 'Afternoon (12-18)', min: 12, max: 17 },
-    { name: 'Evening (18-24)', min: 18, max: 23 }
-  ];
-
-  const heatmapMatrix = days.map((dayName, dayIdx) => {
-    const row: Record<string, number> = { dayIdx };
-    hourBlocks.forEach((block) => {
-      const cellSum = heatmapRaw
-        .filter(h => h.dayOfWeek === dayIdx && h.localHour !== null && h.localHour >= block.min && h.localHour <= block.max)
-        .reduce((sum, curr) => sum + curr._count.id, 0);
-      row[block.name] = cellSum;
-    });
-    return { name: dayName, ...row };
-  });
-
   return (
-    <div className="space-y-6 md:space-y-8 select-none font-mono">
-      
-      {/* Title */}
-      <div className="space-y-1">
-        <h2 className="text-xs font-mono uppercase tracking-widest text-neutral-400">User Behavior Insights</h2>
-        <p className="text-xs text-neutral-600 font-mono">Monospace engineering charts tracking system visitor profiles.</p>
+    <div className="space-y-8 select-none font-mono">
+      <div className="space-y-2">
+        <h2 className="text-xs uppercase tracking-[0.4em] text-neutral-400">Analytics Console</h2>
+        <p className="text-xs text-neutral-600 leading-relaxed">
+          {range.toUpperCase()} selected. Every table is sorted highest-first and uses the same telemetry window.
+        </p>
       </div>
 
-      {/* Row 1: Core Metrics & Returns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Visitor retention */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-3">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Visitor Cohorts</h4>
-          <div className="space-y-3 text-xs text-neutral-300">
-            <div className="flex justify-between border-b border-neutral-950 pb-1.5">
-              <span>Unique Visitors</span>
-              <span className="text-white font-bold">{overview.visitorsCount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-950 pb-1.5">
-              <span>Returning Sessions Ratio</span>
-              <span className="text-white font-bold">{overview.returningVisitorsRate}%</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Devices */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-3">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Device Class</h4>
-          <div className="space-y-2 text-xs text-neutral-300">
-            {devices.map((d, idx) => (
-              <div key={idx} className="flex justify-between border-b border-neutral-950 pb-1.5">
-                <span>{d.deviceType || 'Desktop'}</span>
-                <span className="text-white font-bold">{d._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Viewport Size Buckets */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-3">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Screen Size Buckets</h4>
-          <div className="space-y-2 text-xs text-neutral-300">
-            {screenBuckets.map((sb, idx) => (
-              <div key={idx} className="flex justify-between border-b border-neutral-950 pb-1.5">
-                <span>{sb.screenSizeBucket || 'Desktop'}</span>
-                <span className="text-white font-bold">{sb._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Unique Visitors', value: overview.visitorsCount.toLocaleString() },
+          { label: 'Sessions', value: overview.sessionsCount.toLocaleString() },
+          { label: 'Exports', value: overview.exportsCount.toLocaleString() },
+          { label: 'Conversion Rate', value: `${overview.conversionRate.toFixed(1)}%` }
+        ].map((item) => (
+          <Card key={item.label} className="bg-black border border-neutral-900 rounded p-4">
+            <p className="text-[10px] uppercase tracking-widest text-neutral-500">{item.label}</p>
+            <p className="mt-1 text-lg font-bold text-white">{item.value}</p>
+          </Card>
+        ))}
       </div>
 
-      {/* Row 2: Browsers, OS, Languages, Timezones */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        
-        {/* Browsers */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-2">
-          <h4 className="text-[9px] uppercase text-neutral-500 tracking-wider">Browser</h4>
-          <div className="space-y-1.5 text-xs text-neutral-300">
-            {browsers.map((b, i) => (
-              <div key={i} className="flex justify-between border-b border-neutral-950 pb-1">
-                <span className="truncate max-w-[100px]">{b.browser || 'Unknown'}</span>
-                <span className="text-white font-bold">{b._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* OS */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-2">
-          <h4 className="text-[9px] uppercase text-neutral-500 tracking-wider">Operating System</h4>
-          <div className="space-y-1.5 text-xs text-neutral-300">
-            {oss.map((o, i) => (
-              <div key={i} className="flex justify-between border-b border-neutral-950 pb-1">
-                <span className="truncate max-w-[100px]">{o.operatingSystem || 'Unknown'}</span>
-                <span className="text-white font-bold">{o._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Languages */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-2">
-          <h4 className="text-[9px] uppercase text-neutral-500 tracking-wider">Languages</h4>
-          <div className="space-y-1.5 text-xs text-neutral-300">
-            {languages.map((l, i) => (
-              <div key={i} className="flex justify-between border-b border-neutral-950 pb-1">
-                <span className="truncate max-w-[100px]">{l.language || 'en'}</span>
-                <span className="text-white font-bold">{l._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Timezones */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-2">
-          <h4 className="text-[9px] uppercase text-neutral-500 tracking-wider">Timezones</h4>
-          <div className="space-y-1.5 text-xs text-neutral-300">
-            {timezones.map((tz, i) => (
-              <div key={i} className="flex justify-between border-b border-neutral-950 pb-1">
-                <span className="truncate max-w-[100px]">{tz.timezone?.split('/').pop() || 'UTC'}</span>
-                <span className="text-white font-bold">{tz._count.id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-      </div>
-
-      {/* Row 3: Channels, Sources, Landing Pages, Export Sources */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Export Source distribution */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Source Distribution</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Source Application</th>
-                  <th className="px-4 py-2 text-right">PDFs Printed</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {exportSources.map((es, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{es.exportSource || 'ChatGPT'}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{es._count.id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Landing pages */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Top Landing Routes</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Landing URL Path</th>
-                  <th className="px-4 py-2 text-right">Visits Count</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {landingPages.map((lp, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{lp.landingPath || '/'}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{lp._count.id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-      </div>
-
-      {/* Geography: Countries & Cities */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Countries */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Top Countries Demand</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">Country Name</th>
-                  <th className="px-4 py-2 text-right">Exports Logged</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {countries.map((c, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{c.country || 'Unknown'}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{c._count.id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Cities */}
-        <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-          <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Top Cities Demand</h4>
-          <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                  <th className="px-4 py-2">City Location</th>
-                  <th className="px-4 py-2 text-right">Exports Logged</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-950 text-neutral-400">
-                {cities.map((ct, i) => (
-                  <tr key={i} className="hover:bg-neutral-950/10">
-                    <td className="px-4 py-2 text-white font-medium">{ct.city || 'Unknown'}</td>
-                    <td className="px-4 py-2 text-right font-bold text-white">{ct._count.id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-      </div>
-
-      {/* Hour x Day Usage Heatmap Grid */}
-      <Card className="bg-black border border-neutral-900 rounded p-4 space-y-4">
-        <h4 className="text-[10px] uppercase text-neutral-500 tracking-wider">Export Time Heatmap (Hour × Day)</h4>
-        <div className="border border-neutral-900 rounded overflow-hidden text-xs">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-                <th className="px-4 py-2.5">Day of Week</th>
-                {hourBlocks.map((b) => (
-                  <th key={b.name} className="px-4 py-2.5 text-right">{b.name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-950 text-neutral-400">
-              {heatmapMatrix.map((row, idx) => (
-                <tr key={idx} className="hover:bg-neutral-950/20 transition-colors">
-                  <td className="px-4 py-3 text-white font-medium">{row.name}</td>
-                  {hourBlocks.map((b) => {
-                    const val = (row as any)[b.name] || 0;
-                    return (
-                      <td key={b.name} className={`px-4 py-3 text-right ${val > 0 ? 'text-white font-bold' : 'text-neutral-600'}`}>
-                        {val}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-xs uppercase tracking-[0.35em] text-neutral-400">Acquisition</h3>
+          <p className="text-[11px] text-neutral-600">Traffic sources, search, AI referrers, and landing pages.</p>
         </div>
-      </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <SectionTable
+            title="Traffic Sources"
+            rows={trafficSources.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No traffic source telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Traffic Source' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Referrers"
+            rows={referrers.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No referrer telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Referrer' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Landing Pages"
+            rows={landingPages.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No landing-page telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Landing Page' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Search Engines and AI Referrers"
+            rows={growth.referrers.map((row) => ({ name: row.source, exports: row.sessions.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: '—' }))}
+            emptyMessage="No search-engine or AI referral telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Source' },
+              { key: 'exports', label: 'Sessions', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+        </div>
+      </div>
 
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-xs uppercase tracking-[0.35em] text-neutral-400">Behaviour</h3>
+          <p className="text-[11px] text-neutral-600">Visitor mix and repeat-use signals.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <SectionTable
+            title="Visitor Mix"
+            rows={[
+              { name: 'Unique Visitors', exports: overview.visitorsCount.toLocaleString(), successRate: `${overview.conversionRate.toFixed(1)}%`, avgLatency: `${overview.avgDuration.toFixed(1)}s` },
+              { name: 'Returning Visitors', exports: `${overview.returningVisitorsRate.toFixed(1)}%`, successRate: `${overview.successRate.toFixed(1)}%`, avgLatency: `${overview.avgDuration.toFixed(1)}s` },
+              { name: 'Sessions', exports: overview.sessionsCount.toLocaleString(), successRate: `${overview.conversionRate.toFixed(1)}%`, avgLatency: `${overview.avgDuration.toFixed(1)}s` },
+              { name: 'Exports per Session', exports: overview.sessionsCount > 0 ? (overview.exportsCount / overview.sessionsCount).toFixed(2) : '0.00', successRate: `${overview.successRate.toFixed(1)}%`, avgLatency: `${overview.avgDuration.toFixed(1)}s` }
+            ]}
+            emptyMessage="No behavioural telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Metric' },
+              { key: 'exports', label: 'Value', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Conversion Cohorts"
+            rows={growth.utmCampaigns.map((row) => ({ name: `${row.utmSource} / ${row.utmCampaign}`, exports: row.sessions.toLocaleString(), successRate: `${row.conversionRate.toFixed(1)}%`, avgLatency: '—' }))}
+            emptyMessage="No UTM telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Campaign' },
+              { key: 'exports', label: 'Sessions', align: 'right' },
+              { key: 'successRate', label: 'Conversion', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-xs uppercase tracking-[0.35em] text-neutral-400">Technology</h3>
+          <p className="text-[11px] text-neutral-600">Browsers, operating systems, devices, languages, timezones, and geography.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <SectionTable
+            title="Browsers"
+            rows={browsers.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No browser telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Browser' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Browser Versions"
+            rows={browserVersions.map((row) => ({ name: row.name, exports: row.count.toLocaleString(), successRate: '—', avgLatency: '—' }))}
+            emptyMessage="No browser version telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Version' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Operating Systems"
+            rows={oss.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No operating-system telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'OS' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="OS Versions"
+            rows={osVersions.map((row) => ({ name: row.name, exports: row.count.toLocaleString(), successRate: '—', avgLatency: '—' }))}
+            emptyMessage="No OS version telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Version' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Device Types"
+            rows={devices.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No device telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Device' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Screen Buckets"
+            rows={screenBuckets.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No screen telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Screen Bucket' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Languages"
+            rows={languages.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No language telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Language' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Timezones"
+            rows={timezones.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No timezone telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Timezone' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Top Locations"
+            rows={locations.map((row) => ({ name: row.name, exports: row.count.toLocaleString() }))}
+            emptyMessage="No location telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Location' },
+              { key: 'exports', label: 'Exports', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Countries"
+            rows={countries.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No country telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'Country' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+          <SectionTable
+            title="Cities"
+            rows={cities.map((row) => ({ name: row.name, exports: row.exports.toLocaleString(), successRate: `${row.successRate.toFixed(1)}%`, avgLatency: `${row.avgLatency.toFixed(1)}s` }))}
+            emptyMessage="No city telemetry in the selected period."
+            columns={[
+              { key: 'name', label: 'City' },
+              { key: 'exports', label: 'Exports', align: 'right' },
+              { key: 'successRate', label: 'Success Rate', align: 'right' },
+              { key: 'avgLatency', label: 'Avg Latency', align: 'right' }
+            ]}
+          />
+        </div>
+      </div>
     </div>
   );
 }

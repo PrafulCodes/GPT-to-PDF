@@ -1,7 +1,7 @@
 import React from 'react';
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import Card from '../../../components/Card';
+import ExportExplorerBoard from '../../../components/ExportExplorerBoard';
 import { getExportExplorer } from '@repo/analytics';
 
 export const revalidate = 0;
@@ -13,8 +13,16 @@ interface PageProps {
     device?: string;
     browser?: string;
     country?: string;
+    city?: string;
+    exportSource?: string;
+    trafficSource?: string;
     landingPath?: string;
     referrer?: string;
+    durationBucket?: string;
+    sessionId?: string;
+    visitorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
     page?: string;
     cursorId?: string;
   }>;
@@ -29,8 +37,16 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
   const device = params.device || 'all';
   const browser = params.browser || 'all';
   const country = params.country || 'all';
+  const city = params.city || 'all';
+  const exportSource = params.exportSource || 'all';
+  const trafficSource = params.trafficSource || 'all';
   const landingPath = params.landingPath || '';
   const referrer = params.referrer || '';
+  const durationBucket = params.durationBucket || 'all';
+  const sessionId = params.sessionId || '';
+  const visitorId = params.visitorId || '';
+  const dateFrom = params.dateFrom || '';
+  const dateTo = params.dateTo || '';
   const dateRange = cookieStore.get('analytics_range')?.value || '7d';
   const currentPageNum = Number(params.page || '1');
   const cursorId = params.cursorId || undefined;
@@ -45,8 +61,16 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
     device,
     browser,
     country,
+    city,
+    exportSource,
+    trafficSource,
     landingPath,
     referrer,
+    durationBucket,
+    sessionId,
+    visitorId,
+    dateFrom,
+    dateTo,
     dateRange,
     limit,
     offset,
@@ -54,19 +78,6 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
   });
 
   const totalPages = Math.ceil(totalCount / limit);
-
-  // Compile export download CSV query parameters
-  const csvParams = new URLSearchParams({
-    search,
-    status,
-    device,
-    browser,
-    country,
-    date: dateRange
-  }).toString();
-
-  // Next cursor logic
-  const nextCursor = logs.length > 0 ? logs[logs.length - 1].id : '';
 
   return (
     <div className="space-y-6 md:space-y-8 select-none font-mono">
@@ -78,18 +89,13 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
           <p className="text-xs text-neutral-600 font-mono">Comprehensive system downloads audit ledger.</p>
         </div>
         <div>
-          <a
-            href={`/api/export-csv?${csvParams}`}
-            className="inline-flex h-8 items-center border border-white px-3 bg-black hover:bg-white hover:text-black font-mono text-[10px] uppercase tracking-widest transition-colors rounded"
-          >
-            Export CSV
-          </a>
+          <div className="text-[10px] uppercase tracking-widest text-neutral-500">Selected range: {dateRange.toUpperCase()}</div>
         </div>
       </div>
 
       {/* Advanced Filters */}
       <Card className="p-4 bg-black border border-neutral-900 rounded">
-        <form method="GET" action="/exports" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <form method="GET" action="/exports" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           
           {/* Keyword Search */}
           <div>
@@ -172,6 +178,47 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
             />
           </div>
 
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">City</label>
+            <input type="text" name="city" defaultValue={city === 'all' ? '' : city} placeholder="Mumbai..." className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Source</label>
+            <input type="text" name="exportSource" defaultValue={exportSource === 'all' ? '' : exportSource} placeholder="ChatGPT..." className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Duration Bucket</label>
+            <select name="durationBucket" defaultValue={durationBucket} className="w-full h-8 bg-black border border-neutral-900 rounded px-2 text-xs text-white focus:outline-none focus:border-white font-mono">
+              <option value="all">All buckets</option>
+              <option value="0–2 sec">0–2 sec</option>
+              <option value="2–5 sec">2–5 sec</option>
+              <option value="5–10 sec">5–10 sec</option>
+              <option value="10+ sec">10+ sec</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Visitor</label>
+            <input type="text" name="visitorId" defaultValue={visitorId} placeholder="anon..." className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Session</label>
+            <input type="text" name="sessionId" defaultValue={sessionId} placeholder="sess..." className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Date From</label>
+            <input type="date" name="dateFrom" defaultValue={dateFrom} className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
+          <div>
+            <label className="text-[8px] uppercase tracking-wider text-neutral-500 block mb-1">Date To</label>
+            <input type="date" name="dateTo" defaultValue={dateTo} className="w-full h-8 bg-black border border-neutral-900 rounded px-2.5 text-xs text-white focus:outline-none focus:border-white font-mono" />
+          </div>
+
           {/* Apply Button */}
           <div className="flex items-end">
             <button
@@ -185,89 +232,27 @@ export default async function ExportExplorerPage({ searchParams }: PageProps) {
         </form>
       </Card>
 
-      {/* Ledger Table */}
-      <div className="border border-neutral-900 rounded bg-black overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
-          <thead>
-            <tr className="border-b border-neutral-900 bg-neutral-950/20 text-[9px] text-neutral-500 uppercase tracking-widest">
-              <th className="px-4 py-2.5">Timestamp (UTC)</th>
-              <th className="px-4 py-2.5">Anonymized Visitor</th>
-              <th className="px-4 py-2.5">Geo</th>
-              <th className="px-4 py-2.5">Client OS</th>
-              <th className="px-4 py-2.5 text-right">PDF size</th>
-              <th className="px-4 py-2.5 text-right">Latency</th>
-              <th className="px-4 py-2.5 text-right">Pages</th>
-              <th className="px-4 py-2.5 text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-950 text-xs text-neutral-300">
-            {logs.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-8 text-center text-neutral-600">
-                  [NO_EXPORT_EVENTS_LOGGED_MATCHING_FILTERS]
-                </td>
-              </tr>
-            ) : (
-              logs.map((ev) => (
-                <tr key={ev.id} className="hover:bg-neutral-950/20 transition-colors font-mono">
-                  <td className="px-4 py-3 text-neutral-500 select-none">
-                    {new Date(ev.timestamp).toISOString().replace('T', ' ').substring(0, 19)}
-                  </td>
-                  <td className="px-4 py-3 select-all truncate max-w-[120px]">
-                    {ev.anonymousVisitorId?.substring(0, 10) || 'anon'}/
-                    {ev.sessionId?.substring(0, 10) || 'anon'}
-                  </td>
-                  <td className="px-4 py-3 truncate max-w-[100px]">{ev.country}</td>
-                  <td className="px-4 py-3 text-neutral-400 select-none">
-                    {ev.browser} / {ev.operatingSystem} ({ev.deviceType})
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {ev.pdfSize ? `${Math.round(ev.pdfSize / 1024)} KB` : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-right">{ev.generationDuration.toFixed(2)}s</td>
-                  <td className="px-4 py-3 text-right">{ev.estimatedPages || '-'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-[8px] uppercase px-1.5 py-0.5 rounded font-bold border ${
-                      ev.success 
-                        ? 'bg-neutral-950 text-white border-neutral-700' 
-                        : 'bg-neutral-900 text-neutral-500 border-neutral-950'
-                    }`}>
-                      {ev.success ? 'Success' : 'Failed'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-neutral-900 pt-4 text-xs font-mono">
-          <div className="text-neutral-500">
-            Page {currentPageNum} of {totalPages} ({totalCount} total matched logs)
-          </div>
-          <div className="flex items-center gap-2">
-            {currentPageNum > 1 && (
-              <Link
-                href={`/exports?search=${search}&status=${status}&device=${device}&browser=${browser}&country=${country}&landingPath=${landingPath}&referrer=${referrer}&page=${currentPageNum - 1}`}
-                className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded"
-              >
-                Previous
-              </Link>
-            )}
-            {currentPageNum < totalPages && (
-              <Link
-                href={`/exports?search=${search}&status=${status}&device=${device}&browser=${browser}&country=${country}&landingPath=${landingPath}&referrer=${referrer}&page=${currentPageNum + 1}&cursorId=${nextCursor}`}
-                className="inline-flex h-8 items-center border border-neutral-900 bg-black hover:bg-neutral-900 px-3 text-white transition-colors rounded"
-              >
-                Next (Cursor)
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
+      <ExportExplorerBoard
+        logs={logs}
+        totalCount={totalCount}
+        currentPageNum={currentPageNum}
+        totalPages={totalPages}
+        search={search}
+        status={status}
+        device={device}
+        browser={browser}
+        country={country}
+        city={city}
+        exportSource={exportSource}
+        trafficSource={trafficSource}
+        landingPath={landingPath}
+        referrer={referrer}
+        durationBucket={durationBucket}
+        sessionId={sessionId}
+        visitorId={visitorId}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+      />
 
     </div>
   );

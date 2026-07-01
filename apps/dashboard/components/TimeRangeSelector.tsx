@@ -4,13 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
 const RANGE_OPTIONS = [
+  { value: 'today', label: 'Today' },
   { value: '24h', label: 'Last 24 Hours' },
   { value: '7d', label: 'Last 7 Days' },
-  { value: '14d', label: 'Last 14 Days' },
   { value: '28d', label: 'Last 28 Days' },
   { value: '90d', label: 'Last 90 Days' },
-  { value: 'this-month', label: 'This Month' },
-  { value: 'last-month', label: 'Last Month' },
+  { value: '12m', label: 'Last 12 Months' },
   { value: 'all-time', label: 'All Time' },
 ];
 
@@ -34,7 +33,7 @@ export function TimeRangeSelector() {
       .find(row => row.startsWith('analytics_range='))
       ?.split('=')[1];
 
-    if (cookieRange) {
+    if (cookieRange && RANGE_OPTIONS.some(opt => opt.value === cookieRange)) {
       setSelectedRange(cookieRange);
       
       // Update URL search parameters to be consistent

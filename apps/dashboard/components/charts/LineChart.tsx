@@ -5,6 +5,12 @@ import React, { useState, useRef, useEffect } from 'react';
 interface DataPoint {
   label: string;
   value: number;
+  exports?: number;
+  successes?: number;
+  failures?: number;
+  visitors?: number;
+  sessions?: number;
+  avgDuration?: number;
 }
 
 interface LineChartProps {
@@ -20,7 +26,7 @@ export function LineChart({ data, height = 200, label }: LineChartProps) {
   if (!data || data.length === 0) {
     return (
       <div style={{ height }} className="flex items-center justify-center border border-neutral-900 rounded font-mono text-xs text-neutral-600 bg-black">
-        [NO_DATA_AVAILABLE]
+        No exports during this period.
       </div>
     );
   }
@@ -78,9 +84,16 @@ export function LineChart({ data, height = 200, label }: LineChartProps) {
       <div className="flex items-center justify-between text-xs font-mono">
         <span className="text-neutral-500 uppercase tracking-wider">{label || 'Activity'}</span>
         {activePoint ? (
-          <span className="text-white">
-            <span className="text-neutral-500">{activePoint.dp.label}:</span> {activePoint.dp.value}
-          </span>
+          <div className="text-white text-right space-y-0.5">
+            <div className="text-neutral-500 uppercase tracking-wider">{activePoint.dp.label}</div>
+            <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-neutral-300">
+              <span>Exports {activePoint.dp.exports ?? activePoint.dp.value}</span>
+              <span>Successful {activePoint.dp.successes ?? 0}</span>
+              <span>Failed {activePoint.dp.failures ?? 0}</span>
+              <span>Latency {(activePoint.dp.avgDuration ?? 0).toFixed(1)}s</span>
+              <span>Visitors {activePoint.dp.visitors ?? 0}</span>
+            </div>
+          </div>
         ) : (
           <span className="text-neutral-400">Hover graph for details</span>
         )}
@@ -123,6 +136,17 @@ export function LineChart({ data, height = 200, label }: LineChartProps) {
             className="stroke-white"
             strokeWidth={1.5}
           />
+
+          {points.map((point, idx) => (
+            <circle
+              key={idx}
+              cx={point.x}
+              cy={point.y}
+              r={activeIndex === idx ? 3.5 : 1.75}
+              className={activeIndex === idx ? 'fill-white stroke-black' : 'fill-neutral-500 stroke-neutral-950'}
+              strokeWidth={1}
+            />
+          ))}
 
           {/* Active Highlight Line and Circle */}
           {activePoint && (
