@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { db, Prisma } from '@repo/db';
 import { logAudit, logError } from '../logger';
 import type { GoogleIntegrationStatus, GoogleRefreshTokenSource } from './types';
-import { config } from '../config';
+import { config, getOptionalGoogleConfig } from '../config';
 
 const GOOGLE_INTEGRATION_PROVIDER = 'google_search_console';
 
@@ -13,7 +13,8 @@ type EncryptedRefreshTokenPayload = {
 };
 
 function getEncryptionKey(): Buffer {
-  const secretMaterial = [config.GOOGLE_CLIENT_SECRET, config.SESSION_SECRET]
+  const googleConfig = getOptionalGoogleConfig();
+  const secretMaterial = [googleConfig.GOOGLE_CLIENT_SECRET, config.SESSION_SECRET]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value))
     .join('::');
@@ -53,7 +54,7 @@ function decryptRefreshToken(payload: EncryptedRefreshTokenPayload): string {
 }
 
 function getEnvRefreshToken(): string | null {
-  return config.GOOGLE_REFRESH_TOKEN || null;
+  return getOptionalGoogleConfig().GOOGLE_REFRESH_TOKEN || null;
 }
 
 async function readIntegrationRow() {
@@ -161,7 +162,7 @@ export async function getGoogleIntegrationStatus(): Promise<GoogleIntegrationSta
   const refreshTokenSource = await getGoogleRefreshTokenSource();
   const row = await readIntegrationRow();
   const metadata = (row?.metadata as Record<string, any>) || {};
-  const siteProperty = metadata.siteProperty || config.GOOGLE_SITE_PROPERTY || 'Not configured';
+  const siteProperty = metadata.siteProperty || getOptionalGoogleConfig().GOOGLE_SITE_PROPERTY || 'Not configured';
 
   return {
     connectionStatus: refreshToken ? 'CONNECTED' : 'NOT_CONNECTED',

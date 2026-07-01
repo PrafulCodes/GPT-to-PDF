@@ -1,12 +1,13 @@
 import { GOOGLE_SEARCH_CONSOLE_SCOPE, type GoogleOAuthConfig } from './types';
-import { config } from '../config';
+import { getGoogleConfig } from '../config';
 
 export function getGoogleOAuthConfig(): GoogleOAuthConfig {
+  const googleConfig = getGoogleConfig();
   return {
-    clientId: config.GOOGLE_CLIENT_ID,
-    clientSecret: config.GOOGLE_CLIENT_SECRET,
-    redirectUri: config.GOOGLE_REDIRECT_URI,
-    refreshToken: config.GOOGLE_REFRESH_TOKEN || null,
+    clientId: googleConfig.GOOGLE_CLIENT_ID,
+    clientSecret: googleConfig.GOOGLE_CLIENT_SECRET,
+    redirectUri: googleConfig.GOOGLE_REDIRECT_URI,
+    refreshToken: googleConfig.GOOGLE_REFRESH_TOKEN || null,
   };
 }
 

@@ -4,7 +4,7 @@ import { getGoogleOAuthConfig } from './env';
 import { refreshGoogleOAuthAccessToken } from './oauth';
 import { getGoogleRefreshToken } from './integration-service';
 import { buildGoogleSearchConsoleSiteResource } from './search-console';
-import { config } from '../config';
+import { getGoogleConfig } from '../config';
 
 export interface SyncResult {
   success: boolean;
@@ -82,7 +82,7 @@ export async function runSearchConsoleSync(force = false): Promise<SyncResult> {
     const tokenResult = await refreshGoogleOAuthAccessToken(refreshToken, oauthConfig);
 
     const metadata = (integration.metadata as Record<string, any>) || {};
-    const siteProperty = metadata.siteProperty || config.GOOGLE_SITE_PROPERTY;
+    const siteProperty = metadata.siteProperty || getGoogleConfig().GOOGLE_SITE_PROPERTY;
 
     if (!siteProperty) {
       throw new Error('Google Search Console Site Property is not configured.');
