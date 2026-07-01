@@ -1,0 +1,13 @@
+# Next.js build outputs
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Dependency directory (usually handled at root but kept here for safety)
+node_modules/
