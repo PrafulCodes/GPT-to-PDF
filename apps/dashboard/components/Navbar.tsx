@@ -18,7 +18,6 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
     try {
       const res = await fetch('/api/logout', { method: 'POST' });
       if (res.ok) {
-        // Redirect to login page and refresh the route state
         router.push('/');
         router.refresh();
       } else {
@@ -31,13 +30,13 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
   };
 
   return (
-    <header className="flex h-14 md:h-16 items-center justify-between px-4 md:px-8 border-b border-neutral-950 bg-black sticky top-0 z-30 w-full">
+    <header className="flex h-16 items-center justify-between px-4 md:px-8 border-b border-neutral-900/80 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30 w-full">
       {/* Left side: Mobile menu toggle + Logo + Title */}
       <div className="flex items-center gap-3">
         {/* Mobile Hamburguer Toggle */}
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-1.5 border border-neutral-900 hover:border-neutral-700 rounded text-neutral-400 hover:text-white transition-colors"
+          className="md:hidden p-1.5 border border-neutral-800 hover:border-neutral-700 rounded-md text-neutral-400 hover:text-white transition-colors bg-neutral-900/50"
           aria-label="Toggle navigation menu"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -47,39 +46,33 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
 
         {/* Brand logo & title - Mobile only since it's already in the desktop sidebar */}
         <div className="flex items-center gap-2 md:hidden">
-          <img src="/favicon.png" alt="Logo" className="w-5 h-5 invert" />
-          <span className="font-semibold text-xs text-white uppercase tracking-wider">GPT to PDF</span>
+          <div className="w-6 h-6 bg-blue-500/20 rounded-md flex items-center justify-center">
+            <img src="/favicon.png" alt="Logo" className="w-3.5 h-3.5 invert opacity-90" />
+          </div>
+          <span className="font-semibold text-xs text-white tracking-tight">Console</span>
         </div>
 
         {/* Section title - Desktop only */}
-        <h1 className="hidden md:block text-xs font-semibold uppercase tracking-widest text-neutral-400">
-          Developer Operations Dashboard
+        <h1 className="hidden md:block text-sm font-medium text-neutral-300">
+          Analytics Overview
         </h1>
       </div>
 
-      {/* Right side: Time Selector + Environment diagnostics and Logout action */}
-      <div className="flex items-center gap-4 text-xs font-mono">
+      {/* Right side: Time Selector + Logout action */}
+      <div className="flex items-center gap-4">
         <TimeRangeSelector />
 
-        <div className="hidden sm:flex items-center gap-3 text-[11px] text-neutral-400">
-          <span>Environment: <strong className="text-white font-medium">Production</strong></span>
-          <span className="text-neutral-800">|</span>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full"></div>
-            <span>Status: <strong className="text-white font-medium">SYS_OK</strong></span>
-          </div>
-        </div>
+        <div className="hidden sm:block w-px h-4 bg-neutral-800"></div>
 
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-950 rounded transition-colors disabled:opacity-50"
+          className="px-3 py-1.5 text-xs font-medium border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900 hover:border-neutral-700 rounded-md transition-all disabled:opacity-50"
         >
-          {isLoggingOut ? 'Terminating...' : 'Logout'}
+          {isLoggingOut ? 'Logging out...' : 'Log out'}
         </button>
       </div>
     </header>
-
   );
 }
 

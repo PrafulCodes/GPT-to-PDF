@@ -32,15 +32,6 @@ function getDeviceType() {
   return 'Desktop';
 }
 
-function isLocalStorageAvailable() {
-  try {
-    localStorage.setItem('test_ls', '1');
-    localStorage.removeItem('test_ls');
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 
 type ProgressStage = 'idle' | 'fetching' | 'formatting' | 'generating' | 'preparing' | 'done';
@@ -125,7 +116,6 @@ export default function HeroInputCard() {
       browser: getBrowserName(),
       browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
       operatingSystem: getOSName(),
-      osVersion: 'Unknown',
       deviceType: getDeviceType(),
       touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       screenResolution: `${window.screen.width}x${window.screen.height}`,
@@ -133,7 +123,6 @@ export default function HeroInputCard() {
       darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
       language: navigator.language || 'en',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-      approximateLatency: 0.0,
       localHour: new Date().getHours(),
       dayOfWeek: new Date().getDay()
     };
