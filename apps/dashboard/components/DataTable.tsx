@@ -7,7 +7,7 @@ export interface Column<T> {
   key: Extract<keyof T, string>;
   label: string;
   align?: 'left' | 'right' | 'center';
-  render?: (value: T[Extract<keyof T, string>], row: T) => React.ReactNode;
+  format?: 'number' | 'percentage' | 'latency';
   sortable?: boolean;
 }
 
@@ -146,7 +146,13 @@ export default function DataTable<T extends Record<string, any>>({
                           column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
                         } text-neutral-300 group-hover:text-white transition-colors`}
                       >
-                        {column.render ? column.render(row[column.key], row) : String(row[column.key])}
+                        {column.format === 'number' && typeof row[column.key] === 'number'
+                          ? Number(row[column.key]).toLocaleString()
+                          : column.format === 'percentage' && typeof row[column.key] === 'number'
+                          ? `${Number(row[column.key]).toFixed(1)}%`
+                          : column.format === 'latency' && typeof row[column.key] === 'number'
+                          ? `${Number(row[column.key]).toFixed(1)}s`
+                          : String(row[column.key])}
                       </td>
                     ))}
                   </tr>

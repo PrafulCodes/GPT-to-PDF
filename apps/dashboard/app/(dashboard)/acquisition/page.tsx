@@ -29,22 +29,22 @@ export default async function AcquisitionPage({ searchParams }: PageProps) {
 
   const commonColumns = [
     { key: 'name', label: 'Source', sortable: true },
-    { key: 'exports', label: 'Exports', align: 'right' as const, sortable: true, render: (val: number) => val.toLocaleString() },
-    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}%` },
-    { key: 'avgLatency', label: 'Avg Latency', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}s` }
+    { key: 'exports', label: 'Exports', align: 'right' as const, sortable: true, format: 'number' as const },
+    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, format: 'percentage' as const },
+    { key: 'avgLatency', label: 'Avg Latency', align: 'right' as const, sortable: true, format: 'latency' as const }
   ];
 
   const aiColumns = [
     { key: 'source', label: 'AI Platform', sortable: true },
-    { key: 'sessions', label: 'Sessions', align: 'right' as const, sortable: true, render: (val: number) => val.toLocaleString() },
-    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}%` }
+    { key: 'sessions', label: 'Sessions', align: 'right' as const, sortable: true, format: 'number' as const },
+    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, format: 'percentage' as const }
   ];
 
   const utmColumns = [
     { key: 'utmSource', label: 'UTM Source', sortable: true },
     { key: 'utmCampaign', label: 'UTM Campaign', sortable: true },
-    { key: 'sessions', label: 'Sessions', align: 'right' as const, sortable: true, render: (val: number) => val.toLocaleString() },
-    { key: 'conversionRate', label: 'Conversion', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}%` }
+    { key: 'sessions', label: 'Sessions', align: 'right' as const, sortable: true, format: 'number' as const },
+    { key: 'conversionRate', label: 'Conversion', align: 'right' as const, sortable: true, format: 'percentage' as const }
   ];
 
   return (

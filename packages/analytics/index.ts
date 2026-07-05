@@ -2101,41 +2101,154 @@ interface OverviewSnapshot {
   visitorsCount: number;
   sessionsCount: number;
   exportsCount: number;
+  failedExportsCount: number;
+  avgDuration: number;
+  avgPdfSize: number;
+  returningVisitorsCount: number;
+  countriesCount: number;
+  topReferrer: string;
+  topLandingPage: string;
+  topExportSource: string;
+  
+  // Legacy fields to prevent build errors in other modules
+  successRate: number;
   conversionRate: number;
   returningVisitorsRate: number;
-  avgDuration: number;
-  successRate: number;
 }
 
 export async function getOverviewSnapshot(range: string, bounds?: { start: Date; end: Date }): Promise<OverviewSnapshot> {
   const { start, end } = bounds || resolveTimeRange(range);
 
-  const [visitors, sessions, exportsCount, successCount, avgDurationResult, returningCount] = await Promise.all([
+  const [
+    visitors,
+    sessions,
+    exportsCount,
+    failedCount,
+    avgStats,
+    returningCount,
+    countriesGroup,
+    referrersGroup,
+    landingGroup,
+    sourceGroup
+  ] = await Promise.all([
     db.visitor.count({ where: { lastVisit: { gte: start, lte: end } } }),
     db.session.count({ where: { started: { gte: start, lte: end } } }),
     db.exportEvent.count({ where: { timestamp: { gte: start, lte: end } } }),
-    db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: true } }),
+    db.exportEvent.count({ where: { timestamp: { gte: start, lte: end }, success: false } }),
     db.exportEvent.aggregate({
-      _avg: { generationDuration: true },
+      _avg: { generationDuration: true, pdfSize: true },
       where: { timestamp: { gte: start, lte: end }, success: true }
     }),
     db.visitor.count({
       where: { lastVisit: { gte: start, lte: end }, returningVisitor: true }
+    }),
+    db.exportEvent.groupBy({
+      by: ['country'],
+      where: { timestamp: { gte: start, lte: end }, country: { not: 'Unknown' } }
+    }),
+    db.exportEvent.groupBy({
+      by: ['normalizedReferrer'],
+      _count: { id: true },
+      where: { timestamp: { gte: start, lte: end } },
+      orderBy: { _count: { id: 'desc' } },
+      take: 1
+    }),
+    db.exportEvent.groupBy({
+      by: ['landingPath'],
+      _count: { id: true },
+      where: { timestamp: { gte: start, lte: end } },
+      orderBy: { _count: { id: 'desc' } },
+      take: 1
+    }),
+    db.exportEvent.groupBy({
+      by: ['exportSource'],
+      _count: { id: true },
+      where: { timestamp: { gte: start, lte: end }, exportSource: { not: null } },
+      orderBy: { _count: { id: 'desc' } },
+      take: 1
     })
   ]);
-
-  const conversionRate = sessions > 0 ? (successCount / sessions) * 100 : 0.0;
-  const returningRate = visitors > 0 ? (returningCount / visitors) * 100 : 0.0;
-  const successRate = exportsCount > 0 ? (successCount / exportsCount) * 100 : 100.0;
 
   return {
     visitorsCount: visitors,
     sessionsCount: sessions,
     exportsCount,
-    conversionRate: Math.round(conversionRate * 10) / 10,
-    returningVisitorsRate: Math.round(returningRate * 10) / 10,
-    avgDuration: Math.round((avgDurationResult._avg.generationDuration || 0.0) * 100) / 100,
-    successRate: Math.round(successRate * 10) / 10
+    failedExportsCount: failedCount,
+    avgDuration: Math.round((avgStats._avg.generationDuration || 0.0) * 100) / 100,
+    avgPdfSize: Math.round(avgStats._avg.pdfSize || 0.0),
+    returningVisitorsCount: returningCount,
+    countriesCount: countriesGroup.length,
+    topReferrer: referrersGroup[0]?.normalizedReferrer || '—',
+    topLandingPage: landingGroup[0]?.landingPath || '—',
+    topExportSource: sourceGroup[0]?.exportSource || '—',
+    
+    // Calculate legacy fields safely
+    successRate: exportsCount > 0 ? ((exportsCount - failedCount) / exportsCount) * 100 : 0,
+    conversionRate: sessions > 0 ? ((exportsCount - failedCount) / sessions) * 100 : 0,
+    returningVisitorsRate: visitors > 0 ? (returningCount / visitors) * 100 : 0
+  };
+}
+
+export async function getFounderTables(bounds?: { start: Date; end: Date }) {
+  const { start, end } = bounds || resolveTimeRange('today');
+
+  const recentExports = await db.exportEvent.findMany({
+    where: { timestamp: { gte: start, lte: end } },
+    orderBy: { timestamp: 'desc' },
+    take: 10,
+    select: { id: true, success: true, pdfSize: true, generationDuration: true, timestamp: true, exportSource: true }
+  });
+
+  const recentVisitors = await db.visitor.findMany({
+    where: { lastVisit: { gte: start, lte: end } },
+    orderBy: { lastVisit: 'desc' },
+    take: 10,
+    select: { anonymousVisitorId: true, preferredCountry: true, preferredBrowser: true, returningVisitor: true, lastVisit: true }
+  });
+
+  const topAcquisition = await db.exportEvent.groupBy({
+    by: ['normalizedReferrer'],
+    where: { timestamp: { gte: start, lte: end }, normalizedReferrer: { not: 'Unknown' } },
+    _count: { id: true },
+    orderBy: { _count: { id: 'desc' } },
+    take: 5
+  });
+
+  const topCountries = await db.exportEvent.groupBy({
+    by: ['country'],
+    where: { timestamp: { gte: start, lte: end }, country: { not: 'Unknown' } },
+    _count: { id: true },
+    orderBy: { _count: { id: 'desc' } },
+    take: 5
+  });
+
+  const topCities = await db.exportEvent.groupBy({
+    by: ['city'],
+    where: { timestamp: { gte: start, lte: end }, city: { not: 'Unknown' } },
+    _count: { id: true },
+    orderBy: { _count: { id: 'desc' } },
+    take: 5
+  });
+
+  const latestFailures = await db.exportEvent.findMany({
+    where: { timestamp: { gte: start, lte: end }, success: false },
+    orderBy: { timestamp: 'desc' },
+    take: 10,
+    select: { id: true, failureReason: true, timestamp: true, exportSource: true }
+  });
+
+  return {
+    recentExports,
+    recentVisitors: recentVisitors.map(v => ({
+      country: v.preferredCountry,
+      browser: v.preferredBrowser,
+      returningVisitor: v.returningVisitor,
+      lastVisit: v.lastVisit
+    })),
+    topAcquisition: topAcquisition.map(x => ({ referrer: x.normalizedReferrer, count: x._count.id })),
+    topCountries: topCountries.map(x => ({ country: x.country, count: x._count.id })),
+    topCities: topCities.map(x => ({ city: x.city, count: x._count.id })),
+    latestFailures
   };
 }
 

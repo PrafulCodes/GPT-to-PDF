@@ -48,14 +48,14 @@ export default async function GeographyPage({ searchParams }: PageProps) {
 
   const commonColumns = [
     { key: 'name', label: 'Location', sortable: true },
-    { key: 'exports', label: 'Exports', align: 'right' as const, sortable: true, render: (val: number) => val.toLocaleString() },
-    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}%` },
-    { key: 'avgLatency', label: 'Avg Latency', align: 'right' as const, sortable: true, render: (val: number) => `${val.toFixed(1)}s` }
+    { key: 'exports', label: 'Exports', align: 'right' as const, sortable: true, format: 'number' as const },
+    { key: 'successRate', label: 'Success Rate', align: 'right' as const, sortable: true, format: 'percentage' as const },
+    { key: 'avgLatency', label: 'Avg Latency', align: 'right' as const, sortable: true, format: 'latency' as const }
   ];
 
   const locationColumns = [
     { key: 'name', label: 'Top Locations', sortable: true },
-    { key: 'count', label: 'Exports', align: 'right' as const, sortable: true, render: (val: number) => val.toLocaleString() }
+    { key: 'count', label: 'Exports', align: 'right' as const, sortable: true, format: 'number' as const }
   ];
 
   return (
