@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import './page.css';
 import Navbar from '../components/Navbar';
 import HeroInputCard from '../components/HeroInputCard';
 import FAQ from '../components/FAQ';
@@ -8,24 +10,29 @@ import Footer from '../components/Footer';
 import { siteUrl } from '../lib/branding';
 
 export const metadata: Metadata = {
-  title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
+  title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
   description:
-    'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving. No extension, no login, works on mobile.',
+    'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
   keywords: [
+    'chatgpt link to pdf converter',
+    'chatgpt to pdf converter',
+    'chat gpt link to pdf converter',
+    'gpt link to pdf',
+    'gpt to pdf',
     'chatgpt to pdf',
-    'convert chatgpt to pdf',
+    'export chatgpt to pdf',
+    'print chatgpt conversation',
     'save chatgpt conversation as pdf',
     'export chatgpt chat',
-    'chatgpt shared link to pdf',
-    'chatgpt to pdf without extension'
+    'gpttopdf'
   ],
   alternates: {
     canonical: siteUrl
   },
   openGraph: {
-    title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
+    title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
     description:
-      'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving.',
+      'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
     url: siteUrl,
     type: 'website',
     images: [
@@ -33,15 +40,15 @@ export const metadata: Metadata = {
         url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: 'GPT to PDF homepage'
+        alt: 'GPTtoPDF homepage'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ChatGPT to PDF Converter | Save & Export Chats | GPT to PDF',
+    title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
     description:
-      'Paste a ChatGPT shared link or conversation and convert it into a clean PDF for saving, exporting, printing, or archiving.',
+      'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
     images: [`${siteUrl}/og-image.png`]
   }
 };
@@ -95,8 +102,8 @@ const howCards = [
   },
   {
     step: '02',
-    title: 'Paste into GPT to PDF',
-    body: 'Paste it into GPT to PDF and click Generate.'
+    title: 'Paste into GPTtoPDF',
+    body: 'Paste it into our ChatGPT Link to PDF Converter and click Generate.'
   },
   {
     step: '03',
@@ -136,12 +143,12 @@ const privacyChecks = [
 ];
 
 export default function Page() {
-  const seoContent = `Save time and keep your AI conversations organized. Paste a ChatGPT conversation or a shared link and download a clean PDF that preserves headings, lists, code blocks, equations, and tables. No login, no extension — works on desktop and mobile.`;
+  const seoContent = `Save time and keep your AI conversations organized with GPTtoPDF. Paste a ChatGPT conversation or shared link and download a clean PDF that preserves headings, lists, code blocks, equations, and tables. No login, no extension — works on desktop and mobile.`;
 
   const websiteLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'GPT to PDF',
+    name: 'GPTtoPDF',
     url: siteUrl,
     description:
       'Convert ChatGPT conversations and shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.'
@@ -150,7 +157,7 @@ export default function Page() {
   const organizationLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'GPT to PDF',
+    name: 'GPTtoPDF',
     url: siteUrl,
     logo: {
       '@type': 'ImageObject',
@@ -161,11 +168,11 @@ export default function Page() {
   const softwareLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'GPT to PDF',
+    name: 'GPTtoPDF',
     url: siteUrl,
     description:
       'Convert ChatGPT shared links into clean downloadable PDFs without installing anything. Mobile-friendly and free to use.',
-    applicationCategory: 'Tools',
+    applicationCategory: 'UtilitiesApplication',
     operatingSystem: 'Web'
   };
 
@@ -189,12 +196,12 @@ export default function Page() {
             <div className="hero-badge">FREE • NO LOGIN • MOBILE FRIENDLY</div>
 
             <div className="hero-copy">
-              <h1 className="hero-headline">Convert ChatGPT Conversations to PDF in One Click</h1>
+              <h1 className="hero-headline">Convert ChatGPT Links & Conversations to PDF</h1>
 
               <p className="hero-subtext">
-                Paste a ChatGPT conversation or shared link and instantly get a clean,
-                formatted PDF with code blocks, equations, tables, and original
-                formatting preserved. No login. No Chrome extension. Works on mobile.
+                GPTtoPDF is a free ChatGPT Link to PDF Converter. Paste a shared link 
+                or conversation and instantly get a clean PDF with code blocks, 
+                equations, and tables preserved. No login or extension required.
               </p>
             </div>
 
@@ -215,15 +222,15 @@ export default function Page() {
 
         <section id="why" className="site-container home-section section-wide">
           <div className="section-intro">
-            <p className="section-kicker">Why GPT to PDF</p>
-            <h2 className="section-heading">Why Use GPT to PDF Instead of Browser Print?</h2>
+            <p className="section-kicker">Why GPTtoPDF</p>
+            <h2 className="section-heading">Why Use GPTtoPDF Instead of Browser Print?</h2>
             <p className="seo-body">{seoContent}</p>
           </div>
 
           <div className="comparison-card card" role="table" aria-label="GPT to PDF vs Browser Print">
             <div className="comparison-grid comparison-header" role="row">
               <div role="columnheader">Feature</div>
-              <div role="columnheader">GPT to PDF</div>
+              <div role="columnheader">GPTtoPDF</div>
               <div role="columnheader">Browser Print</div>
             </div>
 
@@ -269,8 +276,8 @@ export default function Page() {
             <p className="section-kicker">Built for AI conversations</p>
             <h2 className="section-heading">Built for AI Conversations</h2>
             <p className="seo-body">
-              GPT to PDF helps students, developers, researchers, consultants, and teams convert AI conversations into clean,
-              shareable PDFs. Built for ChatGPT today — expanding to more AI models soon.
+              GPTtoPDF helps students, developers, researchers, consultants, and teams convert AI conversations into clean,
+              shareable PDFs. Built to export ChatGPT to PDF effortlessly — expanding to more AI models soon.
             </p>
           </div>
 
@@ -311,14 +318,14 @@ export default function Page() {
             <p className="section-kicker">Related pages</p>
             <h2 className="section-heading">ChatGPT export pages</h2>
             <p className="seo-body">
-              Explore the focused pages for <a href="/save-chatgpt-conversation-as-pdf" className="link">save ChatGPT conversation as PDF</a>,{' '}
-              <a href="/export-chatgpt-chat" className="link">export ChatGPT chat</a>,{' '}
-              <a href="/chatgpt-to-pdf-no-extension" className="link">ChatGPT to PDF without extension</a>, and{' '}
-              <a href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT shared link to PDF</a>.
+              Explore the focused pages for <Link href="/save-chatgpt-conversation-as-pdf" className="link">Save ChatGPT Conversation as PDF</Link>,{' '}
+              <Link href="/export-chatgpt-chat" className="link">Export ChatGPT Chat</Link>,{' '}
+              <Link href="/chatgpt-to-pdf-no-extension" className="link">ChatGPT to PDF without Extension</Link>, and{' '}
+              <Link href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT Shared Link to PDF</Link>.
               {' '}
-              For why the export workflow matters, read <a href="/why-chatgpt-export-is-hard" className="link">why ChatGPT export is hard</a>.
+              For why the export workflow matters, read <Link href="/why-chatgpt-export-is-hard" className="link">Why ChatGPT Export is Hard</Link>.
               {' '}
-              Learn how to <a href="/print-chatgpt-conversation" className="link">print ChatGPT conversation</a>, build a <a href="/chatgpt-conversation-archive" className="link">chatgpt conversation archive</a>, use the <a href="/chatgpt-export-tool" className="link">chatgpt export tool</a>, and follow <a href="/how-to-save-chatgpt-conversations" className="link">how to save ChatGPT conversations</a>.
+              Learn how to <Link href="/print-chatgpt-conversation" className="link">Print ChatGPT Conversation</Link>, build a <Link href="/chatgpt-conversation-archive" className="link">ChatGPT Conversation Archive</Link>, use the <Link href="/chatgpt-export-tool" className="link">ChatGPT Export Tool</Link>, and follow <Link href="/how-to-save-chatgpt-conversations" className="link">How to Save ChatGPT Conversations</Link>.
             </p>
           </div>
         </section>
@@ -333,424 +340,6 @@ export default function Page() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       </main>
 
-      <style>{`
-        .home-page {
-          background:
-            radial-gradient(circle at top, rgba(29, 78, 216, 0.04), transparent 36%),
-            linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
-        }
-
-        .home-section {
-          max-width: 1120px;
-          margin-top: clamp(88px, 10vw, 128px);
-        }
-
-        .section-wide {
-          width: 100%;
-        }
-
-        .section-intro {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-bottom: 28px;
-        }
-
-        .section-kicker {
-          margin: 0;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--color-text-tertiary);
-        }
-
-        .hero-section {
-          margin-top: clamp(24px, 3vw, 40px);
-          padding-top: clamp(24px, 3vw, 32px);
-          padding-bottom: 0;
-          text-align: center;
-        }
-
-        .hero-inner {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 18px;
-          max-width: 900px;
-          margin: 0 auto;
-        }
-
-        .hero-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 8px 14px;
-          border-radius: 9999px;
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          background: rgba(255, 255, 255, 0.82);
-          color: #334155;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
-        }
-
-        .hero-copy {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .hero-headline {
-          font-size: clamp(34px, 4.4vw, 60px);
-          font-weight: 600;
-          letter-spacing: -0.05em;
-          max-width: 14ch;
-          margin: 0;
-          line-height: 1.04;
-          color: var(--color-text-primary);
-        }
-
-        .hero-subtext {
-          font-size: clamp(15px, 1.2vw, 18px);
-          color: var(--color-text-secondary);
-          max-width: 60ch;
-          margin: 0;
-          line-height: 1.7;
-        }
-
-        .hero-card-wrap {
-          width: 100%;
-          max-width: 920px;
-        }
-
-        .hero-card {
-          padding: clamp(18px, 2vw, 28px);
-          border-radius: 24px;
-          background: rgba(255, 255, 255, 0.92);
-        }
-
-        .trust-chip-row {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: 10px;
-          width: 100%;
-          margin-top: 4px;
-        }
-
-        .trust-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 14px;
-          border-radius: 9999px;
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          background: rgba(255, 255, 255, 0.88);
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
-          color: #334155;
-          font-size: 13px;
-          line-height: 1;
-        }
-
-        .trust-chip-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 18px;
-          height: 18px;
-          border-radius: 9999px;
-          background: rgba(16, 185, 129, 0.12);
-          color: #059669;
-          font-size: 11px;
-          flex-shrink: 0;
-        }
-
-        .section-heading {
-          font-size: clamp(24px, 2.5vw, 36px);
-          font-weight: 600;
-          letter-spacing: -0.04em;
-          margin: 0;
-          line-height: 1.12;
-        }
-
-        .seo-body {
-          color: var(--color-text-secondary);
-          font-size: clamp(14px, 1.1vw, 16px);
-          line-height: 1.7;
-          margin: 0;
-          max-width: 68ch;
-        }
-
-        .comparison-card,
-        .privacy-card {
-          padding: clamp(20px, 2.4vw, 30px);
-          border-radius: 24px;
-          background: rgba(255, 255, 255, 0.9);
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          box-shadow: 0 18px 50px rgba(15, 23, 42, 0.05);
-        }
-
-        .comparison-grid {
-          display: grid;
-          grid-template-columns: 1.05fr 1fr 1fr;
-          gap: 16px;
-          align-items: center;
-        }
-
-        .comparison-header {
-          padding-bottom: 14px;
-          margin-bottom: 14px;
-          border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-          font-size: 12px;
-          font-weight: 600;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .comparison-row {
-          padding: 18px 0;
-          border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-        }
-
-        .comparison-row:last-child {
-          border-bottom: none;
-          padding-bottom: 0;
-        }
-
-        .comparison-feature {
-          font-weight: 600;
-          color: var(--color-text-primary);
-          letter-spacing: -0.01em;
-        }
-
-        .comparison-positive,
-        .comparison-negative {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          font-size: 14px;
-          line-height: 1.6;
-        }
-
-        .comparison-positive {
-          color: #0f766e;
-        }
-
-        .comparison-negative {
-          color: #64748b;
-        }
-
-        .comparison-positive span:first-child {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: 9999px;
-          background: rgba(16, 185, 129, 0.12);
-          color: #059669;
-          flex-shrink: 0;
-          font-size: 12px;
-          margin-top: 1px;
-        }
-
-        .comparison-negative span:first-child {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: 9999px;
-          background: rgba(148, 163, 184, 0.14);
-          color: #94a3b8;
-          flex-shrink: 0;
-          font-size: 12px;
-          margin-top: 1px;
-        }
-
-        .step-grid,
-        .persona-grid {
-          display: grid;
-          gap: 16px;
-        }
-
-        .step-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .persona-grid {
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          margin-top: 24px;
-        }
-
-        .step-card,
-        .persona-card {
-          padding: 22px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.9);
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          box-shadow: 0 12px 32px rgba(15, 23, 42, 0.04);
-        }
-
-        .step-number {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 42px;
-          height: 42px;
-          border-radius: 9999px;
-          background: rgba(29, 78, 216, 0.08);
-          color: #1d4ed8;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          margin-bottom: 16px;
-        }
-
-        .step-title,
-        .persona-title {
-          margin: 0 0 10px;
-          font-size: 16px;
-          font-weight: 600;
-          line-height: 1.3;
-          color: var(--color-text-primary);
-        }
-
-        .step-body,
-        .persona-body {
-          margin: 0;
-          color: var(--color-text-secondary);
-          font-size: 14px;
-          line-height: 1.65;
-        }
-
-        .how-note {
-          margin: 18px 0 0;
-          color: var(--color-text-secondary);
-          font-size: 14px;
-          line-height: 1.7;
-          max-width: 72ch;
-        }
-
-        .privacy-card {
-          display: grid;
-          grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
-          gap: 24px;
-          align-items: center;
-          background:
-            radial-gradient(circle at top right, rgba(29, 78, 216, 0.05), transparent 30%),
-            rgba(255, 255, 255, 0.92);
-        }
-
-        .privacy-intro {
-          margin-bottom: 0;
-        }
-
-        .privacy-checklist {
-          display: grid;
-          gap: 12px;
-        }
-
-        .privacy-check-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          border-radius: 16px;
-          background: rgba(249, 250, 251, 0.9);
-          border: 1px solid rgba(15, 23, 42, 0.06);
-          color: var(--color-text-primary);
-          font-size: 14px;
-          line-height: 1.5;
-        }
-
-        .privacy-check-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: 9999px;
-          background: rgba(16, 185, 129, 0.12);
-          color: #059669;
-          flex-shrink: 0;
-          font-size: 12px;
-          font-weight: 700;
-        }
-
-        @media (max-width: 1024px) {
-          .persona-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 640px) {
-          .hero-section {
-            margin-top: 24px;
-            padding-top: 32px;
-            text-align: center;
-          }
-
-          .hero-inner {
-            gap: 14px;
-          }
-
-          .hero-headline {
-            font-size: clamp(28px, 8vw, 38px);
-            max-width: 100%;
-          }
-
-          .hero-subtext {
-            font-size: 15px;
-            max-width: 100%;
-          }
-
-          .trust-chip-row {
-            justify-content: flex-start;
-          }
-
-          .section-intro {
-            margin-bottom: 20px;
-          }
-
-          .comparison-grid {
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-
-          .comparison-header {
-            display: none;
-          }
-
-          .comparison-row {
-            padding: 16px 0;
-          }
-
-          .comparison-feature {
-            margin-bottom: 4px;
-          }
-
-          .step-grid,
-          .persona-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .privacy-card {
-            grid-template-columns: 1fr;
-          }
-
-          .hero-card {
-            padding: 16px;
-            border-radius: 20px;
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -7,38 +7,38 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default:
-      'Convert ChatGPT to PDF Free | GPT to PDF',
-    template: '%s | GPT to PDF'
+      'ChatGPT Link to PDF Converter | GPTtoPDF',
+    template: '%s | GPTtoPDF'
   },
   description:
-    'Convert ChatGPT conversations and shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
+    'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
   keywords: [
+    'chatgpt link to pdf converter',
+    'chatgpt to pdf converter',
+    'chat gpt link to pdf converter',
+    'gpt link to pdf',
+    'gpt to pdf',
     'chatgpt to pdf',
-    'convert chatgpt to pdf',
-    'save chatgpt conversation as pdf',
-    'chatgpt pdf converter',
-    'chatgpt shared link to pdf',
-    'export chatgpt chat',
-    'chatgpt conversation exporter',
-    'chatgpt to pdf free',
-    'chatgpt to pdf mobile',
-    'chatgpt export pdf'
+    'export chatgpt to pdf',
+    'print chatgpt conversation',
+    'save chatgpt conversation',
+    'gpttopdf'
   ],
   alternates: {
     canonical: '/'
   },
   openGraph: {
-    title: 'Convert ChatGPT to PDF Free',
+    title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
     description:
-      'Convert ChatGPT conversations and shared links into clean PDFs instantly.',
+      'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
     url: siteUrl,
-    siteName: 'GPT to PDF',
+    siteName: 'GPTtoPDF',
     images: [
       {
         url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: 'Convert ChatGPT to PDF'
+        alt: 'ChatGPT Link to PDF Converter'
       }
     ],
     locale: 'en_US',
@@ -46,9 +46,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Convert ChatGPT to PDF Free',
+    title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
     description:
-      'Convert ChatGPT conversations and shared links into clean PDFs instantly.',
+      'GPTtoPDF is a free ChatGPT Link to PDF Converter. Convert shared links to PDF without login or extensions. Preserves tables, code, and math formatting.',
     images: [`${siteUrl}/og-image.png`]
   },
   icons: {
