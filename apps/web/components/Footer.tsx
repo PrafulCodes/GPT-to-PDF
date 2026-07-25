@@ -73,11 +73,19 @@ export default function Footer() {
             </div>
           </div>
 
-          <nav className="footer-links" aria-label="Footer links">
-            <a href="/" className="link footer-link">Home</a>
-            <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
-            <a href="/#faq" className="link footer-link">FAQ</a>
-          </nav>
+          <div className="footer-nav-groups">
+            <nav className="footer-links" aria-label="Main links">
+              <a href="/" className="link footer-link">Home</a>
+              <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
+              <a href="/#faq" className="link footer-link">FAQ</a>
+              <a href="/about" className="link footer-link">About</a>
+              <a href="/contact" className="link footer-link">Contact</a>
+            </nav>
+            <nav className="footer-links footer-legal" aria-label="Legal links">
+              <a href="/privacy-policy" className="link footer-link">Privacy Policy</a>
+              <a href="/terms" className="link footer-link">Terms</a>
+            </nav>
+          </div>
         </div>
       </div>
 
@@ -155,16 +163,28 @@ export default function Footer() {
           color: var(--color-text-secondary);
         }
 
+        .footer-nav-groups {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 12px;
+        }
+
         .footer-links {
           display: flex;
-          gap: 12px;
+          gap: 16px;
           flex-wrap: wrap;
           justify-content: flex-end;
         }
 
+        .footer-legal {
+          opacity: 0.85;
+          gap: 12px;
+        }
+
         .footer-link,
         .footer-meta-link {
-          font-size: 12px;
+          font-size: 13px;
           color: var(--color-text-tertiary);
           text-decoration: none;
         }
@@ -198,6 +218,10 @@ export default function Footer() {
 
           .footer-proof-count {
             font-size: 17px;
+          }
+
+          .footer-nav-groups {
+            align-items: flex-start;
           }
 
           .footer-links {
