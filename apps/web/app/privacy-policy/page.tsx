@@ -61,7 +61,7 @@ export default function PrivacyPolicyPage() {
           <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl p-6 md:p-10 shadow-sm">
             <div className="mb-8 border-b border-slate-100 pb-8">
               <h1 id="privacy-heading" className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Privacy Policy</h1>
-              <p className="mt-4 text-slate-500 font-medium">Last Updated: July 2026</p>
+              <p className="mt-4 text-slate-500 font-medium">Last Updated: August 13, 2026</p>
             </div>
 
             <div className="space-y-8 text-slate-600 leading-relaxed md:text-lg">
@@ -89,15 +89,18 @@ export default function PrivacyPolicyPage() {
                 </p>
               </div>
 
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-4">3. Infrastructure and Third-Party Services</h2>
-                <p>
-                  GPTtoPDF is built on modern web infrastructure, utilizing platforms such as Vercel for hosting and Upstash Redis for essential technical functions like rate limiting. 
-                </p>
-                <p className="mt-4">
-                  These services may process standard server logs (such as IP addresses and request timestamps) to ensure the security, stability, and reliability of our application. We only use third-party services that are essential to the operation of GPTtoPDF.
-                </p>
-              </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-4">3. Infrastructure and Third-Party Services</h2>
+                  <p>
+                    GPTtoPDF is built on modern web infrastructure, utilizing platforms such as Vercel for hosting and Upstash Redis for essential technical functions like rate limiting.
+                  </p>
+                  <p className="mt-4">
+                    These services may process standard server logs (such as IP addresses and request timestamps) to ensure the security, stability, and reliability of our application. We only use third-party services that are essential to the operation of GPTtoPDF.
+                  </p>
+                  <p className="mt-4">
+                    We may display third-party advertising on the site, such as Google AdSense. These advertising providers may set cookies or collect information about your device and browsing activity for ad serving and measurement. You can learn about Google’s advertising practices and opt-out options at <a href="https://adssettings.google.com" className="text-blue-700 hover:underline">Google Ad Settings</a>.
+                  </p>
+                </div>
 
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">4. Cookies</h2>
