@@ -45,16 +45,14 @@ export async function POST(req: NextRequest) {
   const city = req.headers.get('x-vercel-ip-city') || 'Unknown';
   const referrer = req.headers.get('referer') || 'Direct';
 
-  // Helper function to send analytics data in the background (fire-and-forget)
-  const logEvent = (
+  const recordExportEvent = async (
     success: boolean,
     failureReason?: string | null,
     failureStage?: string | null,
     httpStatus?: number | null,
     pdfSize?: number | null
   ) => {
-    const duration = (Date.now() - startTime) / 1000;
-    trackExportEvent({
+    await trackExportEvent({
       success,
       failureReason,
       failureStage,
@@ -65,9 +63,7 @@ export async function POST(req: NextRequest) {
       userAgent,
       country,
       city,
-      generationDuration: duration
-    }).catch(err => {
-      console.error('[Analytics] Failed to write event to background:', err);
+      generationDuration: (Date.now() - startTime) / 1000
     });
   };
 
@@ -79,8 +75,7 @@ export async function POST(req: NextRequest) {
       limit: rateLimit.limit,
       remaining: rateLimit.remaining
     });
-
-    logEvent(false, 'Rate Limited', 'rate_limiting', 429);
+    await recordExportEvent(false, 'Rate Limited', 'rate_limiting', 429);
 
     return jsonError(
       429,
@@ -101,7 +96,7 @@ export async function POST(req: NextRequest) {
         ip,
         maxBytes: MAX_REQUEST_BODY_BYTES
       });
-      logEvent(false, 'Payload Too Large', 'payload_validation', 413);
+      await recordExportEvent(false, 'Payload Too Large', 'payload_validation', 413);
       return jsonError(413, { error: 'Payload too large' });
     }
 
@@ -109,7 +104,7 @@ export async function POST(req: NextRequest) {
       route: '/api/generate-pdf',
       ip
     });
-    logEvent(false, 'Invalid Request Body', 'payload_validation', 400);
+    await recordExportEvent(false, 'Invalid Request Body', 'payload_validation', 400);
     return jsonError(400, { error: 'Invalid request body' });
   }
 
@@ -120,7 +115,7 @@ export async function POST(req: NextRequest) {
       ip,
       reason: 'schema_validation_failed'
     });
-    logEvent(false, 'Invalid Request Body', 'payload_validation', 400);
+    await recordExportEvent(false, 'Invalid Request Body', 'payload_validation', 400);
     return jsonError(400, { error: 'Invalid request body' });
   }
 
@@ -130,7 +125,7 @@ export async function POST(req: NextRequest) {
       route: '/api/generate-pdf',
       ip
     });
-    logEvent(false, 'Server Busy', 'concurrency_limits', 503);
+    await recordExportEvent(false, 'Server Busy', 'concurrency_limits', 503);
     return jsonError(503, { error: 'Server busy. Try again shortly.' });
   }
 
@@ -144,16 +139,8 @@ export async function POST(req: NextRequest) {
         ip,
         reason: valid.reason
       });
-      logEvent(false, 'Invalid URL', 'url_validation', 400);
+      await recordExportEvent(false, 'Invalid URL', 'url_validation', 400);
       return jsonError(400, { error: valid.reason });
-    }
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { prewarmBrowser } = require('../../../lib/generate-pdf');
-      prewarmBrowser();
-    } catch {
-      // ignore
     }
 
     const fetched = await fetchChatPage(valid.url, 12000);
@@ -166,7 +153,7 @@ export async function POST(req: NextRequest) {
         reason: fetched.reason,
         ip
       });
-      logEvent(false, fetched.reason || 'Fetch Failed', 'fetch_chat_page', fetched.status || 502);
+      await recordExportEvent(false, fetched.reason || 'Fetch Failed', 'fetch_chat_page', fetched.status || 502);
       return jsonError(502, { error: true, message: 'PDF generation failed. Please try again.' });
     }
 
@@ -178,7 +165,7 @@ export async function POST(req: NextRequest) {
         reason: 'no_messages',
         ip
       });
-      logEvent(false, 'Parser Failed', 'parse_chat_html', 422);
+      await recordExportEvent(false, 'Parser Failed', 'parse_chat_html', 422);
       return jsonError(422, { error: true, message: 'PDF generation failed. Please try again.' });
     }
 
@@ -191,7 +178,7 @@ export async function POST(req: NextRequest) {
         reason: pdfResult.reason,
         ip
       });
-      logEvent(false, pdfResult.reason || 'PDF Generation Failed', 'generate_pdf', 500);
+      await recordExportEvent(false, pdfResult.reason || 'PDF Generation Failed', 'generate_pdf', 500);
       return jsonError(500, { error: true, message: 'PDF generation failed. Please try again.' });
     }
 
@@ -208,9 +195,7 @@ export async function POST(req: NextRequest) {
 
     const fileName = createPdfFileName(parsed.title);
     const pdfBuffer = pdfResult.buffer;
-
-    // Track successful export event in background
-    logEvent(true, null, null, 200, pdfBuffer.byteLength);
+    await recordExportEvent(true, null, null, 200, pdfBuffer.byteLength);
 
     return new Response(new Uint8Array(pdfBuffer), {
       status: 200,
@@ -226,7 +211,7 @@ export async function POST(req: NextRequest) {
       stage: 'route_exception',
       ip
     });
-    logEvent(false, 'Unknown', 'route_exception', 500);
+    await recordExportEvent(false, 'Unknown', 'route_exception', 500);
     return jsonError(500, { error: true, message: 'PDF generation failed. Please try again.' });
   } finally {
     if (slot.acquired) {

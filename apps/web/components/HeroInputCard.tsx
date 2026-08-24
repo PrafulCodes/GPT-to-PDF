@@ -159,32 +159,7 @@ export default function HeroInputCard() {
     setLoading(true);
     setProgress('fetching');
 
-    const startTime = performance.now();
     const stageTimers: Array<ReturnType<typeof setTimeout>> = [];
-    
-    // Telemetry identifiers
-    const anonymousVisitorId = localStorage.getItem('anon_visitor_id') || 'anon';
-    const sessionId = sessionStorage.getItem('anon_session_id') || 'anon';
-    const query = new URLSearchParams(window.location.search);
-    const utms = {
-      utmSource: query.get('utm_source') || undefined,
-      utmMedium: query.get('utm_medium') || undefined,
-      utmCampaign: query.get('utm_campaign') || undefined,
-      utmContent: query.get('utm_content') || undefined,
-      utmTerm: query.get('utm_term') || undefined,
-    };
-
-    let exportSource = 'Unknown';
-    const lowerUrl = trimmed.toLowerCase();
-    if (lowerUrl.includes('chatgpt.com') || lowerUrl.includes('openai.com')) {
-      exportSource = 'ChatGPT';
-    } else if (lowerUrl.includes('claude.ai')) {
-      exportSource = 'Claude';
-    } else if (lowerUrl.includes('gemini.google.com') || lowerUrl.includes('bard.google.com')) {
-      exportSource = 'Gemini';
-    } else if (lowerUrl.includes('perplexity.ai')) {
-      exportSource = 'Perplexity';
-    }
 
     try {
       const req = fetch('/api/generate-pdf', {
@@ -213,81 +188,13 @@ export default function HeroInputCard() {
       link.remove();
       URL.revokeObjectURL(link.href);
 
-      const generationDuration = (performance.now() - startTime) / 1000;
       setProgress('done');
       setTimeout(() => setProgress('idle'), 1800);
 
-      // Decoupled log export success telemetry
-      fetch('/api/telemetry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schemaVersion: 2,
-          eventType: 'export',
-          anonymousVisitorId,
-          sessionId,
-          success: true,
-          generationDuration,
-          landingPath: window.location.pathname,
-          landingQuery: window.location.search.substring(1) || undefined,
-          currentPage: window.location.pathname,
-          rawReferrer: document.referrer || 'Direct',
-          pdfSize: blob.size,
-          ...utms,
-          browser: getBrowserName(),
-          browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
-          operatingSystem: getOSName(),
-          deviceType: getDeviceType(),
-          touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-          screenResolution: `${window.screen.width}x${window.screen.height}`,
-          viewport: `${window.innerWidth}x${window.innerHeight}`,
-          darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
-          language: navigator.language || 'en',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-          exportSource,
-          localHour: new Date().getHours(),
-          dayOfWeek: new Date().getDay()
-        })
-      }).catch(err => console.error('Failed to log telemetry:', err));
-
     } catch (err: any) {
-      const generationDuration = (performance.now() - startTime) / 1000;
       setError('PDF generation failed. Please try again.');
       setProgress('idle');
 
-      // Decoupled log export failure telemetry
-      fetch('/api/telemetry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schemaVersion: 2,
-          eventType: 'export',
-          anonymousVisitorId,
-          sessionId,
-          success: false,
-          failureReason: err instanceof Error ? err.message : 'Unknown generation error',
-          failureStage: 'generate_pdf',
-          generationDuration,
-          landingPath: window.location.pathname,
-          landingQuery: window.location.search.substring(1) || undefined,
-          currentPage: window.location.pathname,
-          rawReferrer: document.referrer || 'Direct',
-          ...utms,
-          browser: getBrowserName(),
-          browserVersion: navigator.userAgent.split(' ').pop() || 'Unknown',
-          operatingSystem: getOSName(),
-          deviceType: getDeviceType(),
-          touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-          screenResolution: `${window.screen.width}x${window.screen.height}`,
-          viewport: `${window.innerWidth}x${window.innerHeight}`,
-          darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
-          language: navigator.language || 'en',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-          exportSource,
-          localHour: new Date().getHours(),
-          dayOfWeek: new Date().getDay()
-        })
-      }).catch(telemetryErr => console.error('Failed to log failure telemetry:', telemetryErr));
     } finally {
       stageTimers.forEach(clearTimeout);
       setLoading(false);

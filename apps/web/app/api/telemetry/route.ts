@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackTelemetry } from '@repo/analytics';
+import { readJsonBodyWithLimit } from '../../../lib/security';
 
 export const runtime = 'nodejs';
+
+const MAX_TELEMETRY_BODY_BYTES = 256 * 1024;
+const MAX_TELEMETRY_BATCH_SIZE = 50;
 
 /**
  * Decoupled batch-ready telemetry logging endpoint.
@@ -10,7 +14,15 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit(req, MAX_TELEMETRY_BODY_BYTES);
+    if (!bodyResult.ok) {
+      return NextResponse.json(
+        { error: bodyResult.tooLarge ? 'Telemetry payload too large' : 'Invalid telemetry payload' },
+        { status: bodyResult.tooLarge ? 413 : 400 }
+      );
+    }
+
+    const body = bodyResult.data;
     
     // Extract Vercel geography and client user-agent headers
     const country = req.headers.get('x-vercel-ip-country') || undefined;
@@ -20,6 +32,9 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get('user-agent') || undefined;
 
     const payloads = Array.isArray(body) ? body : [body];
+    if (payloads.length > MAX_TELEMETRY_BATCH_SIZE) {
+      return NextResponse.json({ error: 'Telemetry batch too large' }, { status: 413 });
+    }
 
     // Fire-and-forget background worker execution
     for (const payload of payloads) {
