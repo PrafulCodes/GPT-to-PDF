@@ -87,6 +87,19 @@ export default function Footer() {
             </nav>
           </div>
         </div>
+<div className="site-container footer-meta-row">
+        <a href={creatorUrl} className="link footer-meta-link">
+          {creatorName}
+        </a>
+        <span aria-hidden="true">•</span>
+        <a href={siteUrl} className="link footer-meta-link">
+          {siteHost}
+        </a>
+      </div>
+
+      <div className="site-container footer-disclaimer">
+        © 2026 GPTtoPDF. Not affiliated with or endorsed by OpenAI. ChatGPT is a trademark of OpenAI.
+      </div>
       </div>
 
       <div className="site-container footer-meta-row">
@@ -104,6 +117,12 @@ export default function Footer() {
           display: flex;
           flex-direction: column;
           gap: 6px;
+        }
+.footer-disclaimer {
+          margin-top: 8px;
+          font-size: 12px;
+          line-height: 1.5;
+          color: var(--color-text-tertiary);
         }
 
         .footer-brand-name {
