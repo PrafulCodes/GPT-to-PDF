@@ -12,6 +12,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1
     },
     {
+      url: `${siteUrl}/video`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.85
+    },
+    {
       url: `${siteUrl}/chatgpt-shared-link-to-pdf`,
       lastModified,
       changeFrequency: 'weekly',
