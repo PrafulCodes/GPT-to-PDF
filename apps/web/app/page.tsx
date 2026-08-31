@@ -220,6 +220,29 @@ export default function Page() {
           </div>
         </section>
 
+        <section id="demo" className="site-container home-section section-wide video-section">
+          <div className="section-intro">
+            <h2 className="section-heading">See how gpttopdf.site works</h2>
+            <p className="seo-body">From a ChatGPT shared link to a clean, downloadable PDF.</p>
+          </div>
+          
+          <div className="video-container">
+            <video 
+              controls 
+              preload="none" 
+              playsInline 
+              width="1280" 
+              height="720"
+              poster="/og-image.png"
+            >
+              <source src="/video/gpttopdf-demo.webm" type="video/webm" />
+              {/* Fallback mp4 will be added here once generated via ffmpeg */}
+              {/* <source src="/video/gpttopdf-demo.mp4" type="video/mp4" /> */}
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </section>
+
         <section id="why" className="site-container home-section section-wide">
           <div className="section-intro">
             <p className="section-kicker">Why GPTtoPDF</p>
