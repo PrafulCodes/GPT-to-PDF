@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
 const csp = [
-  "default-src 'self'",
+  "default-src 'self' https://*.clarity.ms https://c.bing.com",
   "base-uri 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://www.clarity.ms",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://www.clarity.ms https://*.clarity.ms",
   "style-src 'self' 'unsafe-inline'",
   "style-src-elem 'self' https://fonts.googleapis.com 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: https://c.bing.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://*.vercel.app https://vitals.vercel-insights.com https://fonts.googleapis.com https://fonts.gstatic.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://ep1.adtrafficquality.google https://adservice.google.com https://*.clarity.ms",
+  "connect-src 'self' https://*.vercel.app https://vitals.vercel-insights.com https://fonts.googleapis.com https://fonts.gstatic.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://ep1.adtrafficquality.google https://adservice.google.com https://*.clarity.ms https://c.bing.com",
   "frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com",
   "child-src 'self' https://googleads.g.doubleclick.net",
   'upgrade-insecure-requests'
