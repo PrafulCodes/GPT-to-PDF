@@ -217,6 +217,39 @@ export default function Page() {
                 </span>
               ))}
             </div>
+
+            <div style={{ marginTop: '16px', fontSize: '14px', textAlign: 'center' }}>
+              <a href="/final-test.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'none', fontWeight: 500 }}>
+                Preview a sample PDF &rarr;
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section id="demo" className="site-container home-section section-wide video-section">
+          <div className="section-intro">
+            <h2 className="section-heading">
+              <Link href="/video" style={{ color: 'inherit', textDecoration: 'none' }} title="Watch the product demonstration video">
+                See how gpttopdf.site works
+              </Link>
+            </h2>
+            <p className="seo-body">From a ChatGPT shared link to a clean, downloadable PDF.</p>
+          </div>
+          
+          <div className="video-container">
+            <video 
+              controls 
+              preload="none" 
+              playsInline 
+              width="1280" 
+              height="720"
+              poster="/og-image.png"
+            >
+              <source src="/video/gpttopdf-demo.webm" type="video/webm" />
+              {/* Fallback mp4 will be added here once generated via ffmpeg */}
+              {/* <source src="/video/gpttopdf-demo.mp4" type="video/mp4" /> */}
+              Your browser does not support the video tag.
+            </video>
           </div>
         </section>
 
@@ -318,14 +351,13 @@ export default function Page() {
             <p className="section-kicker">Related pages</p>
             <h2 className="section-heading">ChatGPT export pages</h2>
             <p className="seo-body">
-              Explore the focused pages for <Link href="/save-chatgpt-conversation-as-pdf" className="link">Save ChatGPT Conversation as PDF</Link>,{' '}
-              <Link href="/export-chatgpt-chat" className="link">Export ChatGPT Chat</Link>,{' '}
-              <Link href="/chatgpt-to-pdf-no-extension" className="link">ChatGPT to PDF without Extension</Link>, and{' '}
-              <Link href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT Shared Link to PDF</Link>.
+              Explore our guides to learn more about <Link href="/save-chatgpt-conversation-as-pdf" className="link">saving your conversations securely</Link>,{' '}
+              <Link href="/export-chatgpt-chat" className="link">exporting chats for offline use</Link>, or converting <Link href="/chatgpt-shared-link-to-pdf" className="link">shared links directly</Link>{' '}
+              <Link href="/chatgpt-to-pdf-no-extension" className="link">without installing browser extensions</Link>.
               {' '}
-              For why the export workflow matters, read <Link href="/why-chatgpt-export-is-hard" className="link">Why ChatGPT Export is Hard</Link>.
+              If you're wondering why native options often break, read our technical breakdown on <Link href="/why-chatgpt-export-is-hard" className="link">why exporting is hard</Link>.
               {' '}
-              Learn how to <Link href="/print-chatgpt-conversation" className="link">Print ChatGPT Conversation</Link>, build a <Link href="/chatgpt-conversation-archive" className="link">ChatGPT Conversation Archive</Link>, use the <Link href="/chatgpt-export-tool" className="link">ChatGPT Export Tool</Link>, and follow <Link href="/how-to-save-chatgpt-conversations" className="link">How to Save ChatGPT Conversations</Link>.
+              You can also learn the best methods to <Link href="/print-chatgpt-conversation" className="link">print threads</Link>, build a <Link href="/chatgpt-conversation-archive" className="link">personal archive</Link>, or use a dedicated <Link href="/chatgpt-export-tool" className="link">export tool</Link> in our complete guide on <Link href="/how-to-save-chatgpt-conversations" className="link">how to save AI discussions</Link>.
             </p>
           </div>
         </section>

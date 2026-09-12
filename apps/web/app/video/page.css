@@ -1,0 +1,106 @@
+.video-page {
+  background:
+    radial-gradient(circle at top, rgba(29, 78, 216, 0.04), transparent 36%),
+    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  min-height: 100vh;
+}
+
+.video-section {
+  max-width: 1120px;
+  margin: clamp(88px, 10vw, 128px) auto 40px;
+  padding: 0 20px;
+}
+
+.video-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.video-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.video-heading {
+  font-size: clamp(28px, 3.5vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  margin: 0;
+  line-height: 1.12;
+  color: var(--color-text-primary);
+}
+
+.video-body {
+  color: var(--color-text-secondary);
+  font-size: clamp(15px, 1.2vw, 18px);
+  line-height: 1.7;
+  margin: 0 auto;
+  max-width: 68ch;
+}
+
+.video-player-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 20px;
+  overflow: hidden;
+  background-color: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.04);
+}
+
+.video-player-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.video-disclaimer {
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.back-link-container {
+  text-align: center;
+  margin-top: 40px;
+  padding-bottom: 60px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  background: rgba(29, 78, 216, 0.08);
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.back-link:hover {
+  background: rgba(29, 78, 216, 0.12);
+}
+
+@media (max-width: 640px) {
+  .video-section {
+    margin-top: 80px;
+  }
+  
+  .video-heading {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+}
