@@ -8,7 +8,7 @@ import { siteUrl } from '../../lib/branding';
 const pageUrl = `${siteUrl}/contact`;
 
 export const metadata: Metadata = {
-  title: 'Contact | GPTtoPDF',
+  title: 'Contact',
   description:
     'Get in touch with the GPTtoPDF team for support, bug reports, feature requests, or business enquiries.',
   robots: { index: true, follow: true },

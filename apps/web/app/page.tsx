@@ -218,11 +218,6 @@ export default function Page() {
               ))}
             </div>
 
-            <div style={{ marginTop: '16px', fontSize: '14px', textAlign: 'center' }}>
-              <a href="/final-test.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8', textDecoration: 'none', fontWeight: 500 }}>
-                Preview a sample PDF &rarr;
-              </a>
-            </div>
           </div>
         </section>
 

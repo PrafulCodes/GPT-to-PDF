@@ -24,54 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9
     },
     {
-      url: `${siteUrl}/save-chatgpt-conversation-as-pdf`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.85
-    },
-    {
-      url: `${siteUrl}/export-chatgpt-chat`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.85
-    },
-    {
-      url: `${siteUrl}/chatgpt-to-pdf-no-extension`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.85
-    },
-    {
-      url: `${siteUrl}/why-chatgpt-export-is-hard`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.8
-    },
-    {
-      url: `${siteUrl}/print-chatgpt-conversation`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.78
-    },
-    {
-      url: `${siteUrl}/chatgpt-conversation-archive`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.78
-    },
-    {
-      url: `${siteUrl}/chatgpt-export-tool`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.78
-    },
-    {
-      url: `${siteUrl}/how-to-save-chatgpt-conversations`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.78
-    },
-    {
       url: `${siteUrl}/about`,
       lastModified,
       changeFrequency: 'weekly',

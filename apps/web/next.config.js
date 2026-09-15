@@ -45,6 +45,24 @@ const nextConfig = {
         ]
       }
     ];
+  },
+  async redirects() {
+    const duplicateLandingPages = [
+      '/save-chatgpt-conversation-as-pdf',
+      '/export-chatgpt-chat',
+      '/chatgpt-to-pdf-no-extension',
+      '/why-chatgpt-export-is-hard',
+      '/print-chatgpt-conversation',
+      '/chatgpt-conversation-archive',
+      '/chatgpt-export-tool',
+      '/how-to-save-chatgpt-conversations'
+    ];
+
+    return duplicateLandingPages.map((source) => ({
+      source,
+      destination: '/chatgpt-shared-link-to-pdf',
+      permanent: true
+    }));
   }
 };
 

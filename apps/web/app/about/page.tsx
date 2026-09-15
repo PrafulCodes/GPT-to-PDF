@@ -8,7 +8,7 @@ import { siteUrl } from '../../lib/branding';
 const pageUrl = `${siteUrl}/about`;
 
 export const metadata: Metadata = {
-  title: 'About | GPTtoPDF',
+  title: 'About',
   description:
     'Learn about GPTtoPDF, a free web tool to convert ChatGPT links to PDF while preserving formatting. No login required and mobile friendly.',
   robots: { index: true, follow: true },

@@ -7,8 +7,9 @@ import Footer from '../../components/Footer';
 import { siteUrl } from '../../lib/branding';
 
 const videoTitle = 'How gpttopdf.site Works | ChatGPT Link to PDF';
-const videoDescription = 'Watch how gpttopdf.site instantly converts a ChatGPT shared link into a clean, downloadable PDF. Preserves tables, code blocks, and mathematical formatting effortlessly.';
-const videoUploadDate = '2024-10-24T00:00:00+00:00'; // Approximate upload date
+const videoDescription =
+  'See how gpttopdf.site converts a ChatGPT shared link into a clean, downloadable PDF while preserving supported formatting such as tables, code blocks, and mathematical content.';
+const videoUploadDate = '2026-09-01T00:00:00+05:30';
 
 export const metadata: Metadata = {
   title: videoTitle,
@@ -64,11 +65,11 @@ export default function VideoWatchPage() {
           </div>
 
           <div className="video-player-container">
-            <video 
-              controls 
-              preload="none" 
-              playsInline 
-              width="1280" 
+            <video
+              controls
+              preload="none"
+              playsInline
+              width="1280"
               height="720"
               poster="/og-image.png"
             >
@@ -80,7 +81,7 @@ export default function VideoWatchPage() {
           <p className="video-disclaimer">
             gpttopdf.site is not affiliated with or endorsed by OpenAI. ChatGPT is a trademark of OpenAI.
           </p>
-          
+
           <div className="back-link-container">
             <Link href="/" className="back-link">
               <span aria-hidden="true">←</span> Try the converter
@@ -89,7 +90,7 @@ export default function VideoWatchPage() {
         </section>
 
         <Footer />
-        
+
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(videoObjectLd) }} />
       </main>
     </div>

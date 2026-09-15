@@ -8,7 +8,7 @@ import { siteUrl } from '../../lib/branding';
 const pageUrl = `${siteUrl}/privacy-policy`;
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | GPTtoPDF',
+  title: 'Privacy Policy',
   description:
     'Privacy Policy for GPTtoPDF. Learn how we handle your information and provide a private ChatGPT Link to PDF conversion experience.',
   robots: { index: true, follow: true },

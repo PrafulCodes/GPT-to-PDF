@@ -87,29 +87,19 @@ export default function Footer() {
             </nav>
           </div>
         </div>
-<div className="site-container footer-meta-row">
-        <a href={creatorUrl} className="link footer-meta-link">
-          {creatorName}
-        </a>
-        <span aria-hidden="true">•</span>
-        <a href={siteUrl} className="link footer-meta-link">
-          {siteHost}
-        </a>
-      </div>
+        <div className="site-container footer-meta-row">
+          <a href={creatorUrl} className="link footer-meta-link">
+            {creatorName}
+          </a>
+          <span aria-hidden="true">•</span>
+          <a href={siteUrl} className="link footer-meta-link">
+            {siteHost}
+          </a>
+        </div>
 
-      <div className="site-container footer-disclaimer">
-        © 2026 GPTtoPDF. Not affiliated with or endorsed by OpenAI. ChatGPT is a trademark of OpenAI.
-      </div>
-      </div>
-
-      <div className="site-container footer-meta-row">
-        <a href={creatorUrl} className="link footer-meta-link">
-          {creatorName}
-        </a>
-        <span aria-hidden="true">•</span>
-        <a href={siteUrl} className="link footer-meta-link">
-          {siteHost}
-        </a>
+        <div className="site-container footer-disclaimer">
+          © 2026 GPTtoPDF. Not affiliated with or endorsed by OpenAI. ChatGPT is a trademark of OpenAI.
+        </div>
       </div>
 
       <style>{`

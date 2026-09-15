@@ -8,7 +8,7 @@ import { siteUrl } from '../../lib/branding';
 const pageUrl = `${siteUrl}/terms`;
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | GPTtoPDF',
+  title: 'Terms of Service',
   description:
     'Terms of Service for GPTtoPDF. Read the rules and guidelines for using our ChatGPT Link to PDF converter.',
   robots: { index: true, follow: true },
