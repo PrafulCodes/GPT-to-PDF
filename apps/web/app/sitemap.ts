@@ -12,7 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1
     },
     {
-      url: `${siteUrl}/video`,
+      url: `${siteUrl}/video/how-to-convert-chatgpt-to-pdf`,
       lastModified,
       changeFrequency: 'weekly',
       priority: 0.85

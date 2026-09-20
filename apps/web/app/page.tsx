@@ -224,7 +224,7 @@ export default function Page() {
         <section id="demo" className="site-container home-section section-wide video-section">
           <div className="section-intro">
             <h2 className="section-heading">
-              <Link href="/video" style={{ color: 'inherit', textDecoration: 'none' }} title="Watch the product demonstration video">
+              <Link href="/video/how-to-convert-chatgpt-to-pdf" style={{ color: 'inherit', textDecoration: 'none' }} title="Watch the product demonstration video">
                 See how gpttopdf.site works
               </Link>
             </h2>
