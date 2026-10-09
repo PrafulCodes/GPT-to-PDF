@@ -10,7 +10,9 @@ test('normalizes all supported delimiter styles without changing TeX', () => {
   const source = String.raw`\(\frac{a+b}{c+d}\) and \[\sum_{n=1}^{\infty}\frac{1}{n^2}\]`;
   const normalized = normalizeLatexDelimiters(source);
 
-  assert.equal(normalized, String.raw`$\frac{a+b}{c+d}$ and $$\sum_{n=1}^{\infty}\frac{1}{n^2}$$`);
+  assert.equal(normalized, String.raw`$\frac{a+b}{c+d}$ and $$
+\sum_{n=1}^{\infty}\frac{1}{n^2}
+$$`);
 });
 
 test('recovers TeX from already-rendered KaTeX HTML', () => {
@@ -35,6 +37,7 @@ $$
   assert.match(html, /class="katex-display"/);
   assert.doesNotMatch(html, /katex-error/);
   assert.match(html, /π|alpha/);
+  assert.doesNotMatch(html, /<hr\b/i);
 });
 
 test('keeps literal LaTeX in fenced code blocks', async () => {
@@ -42,4 +45,34 @@ test('keeps literal LaTeX in fenced code blocks', async () => {
 
   assert.match(html, /<pre><code class="language-latex">\\frac\{a\}\{b\}/);
   assert.doesNotMatch(html, /class="katex"/);
+});
+
+test('renders the minimal reproduction fixture and removes ChatGPT writing wrappers', async () => {
+  const fixture = String.raw`:::writing{variant="standard" title="Math"}
+Inline: \(E = mc^2\)
+
+\[\frac{a+b}{\sqrt{x^2+1}}\]
+
+\[\sum_{n=1}^{\infty}\frac{1}{n^2}\]
+
+\[\begin{aligned}f(x)&=x^2+1\\g(x)&=\frac{1}{x+1}\end{aligned}\]
+:::`;
+  const html = await markdownToHtml(fixture);
+
+  assert.equal((html.match(/class="katex-display"/g) || []).length, 3);
+  assert.equal((html.match(/class="katex-error"/g) || []).length, 0);
+  assert.doesNotMatch(html, /:::writing|variant="standard"/);
+});
+
+test('does not rewrite LaTeX-looking inline code', async () => {
+  const html = await markdownToHtml('Use `\\(E = mc^2\\)` as a literal example.');
+
+  assert.match(html, /<code>\\\(E = mc\^2\\\)<\/code>/);
+  assert.doesNotMatch(html, /class="katex"/);
+});
+
+test('preserves legitimate Markdown horizontal rules', async () => {
+  const html = await markdownToHtml('Before\n\n---\n\nAfter');
+
+  assert.match(html, /<hr>/);
 });

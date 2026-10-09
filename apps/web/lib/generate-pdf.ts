@@ -154,6 +154,39 @@ export function normalizeMarkdownSource(input: string): string {
     .trim();
 }
 
+function stripChatWritingWrappers(source: string): string {
+  let insideWritingWrapper = false;
+  const lines: string[] = [];
+
+  for (const line of source.split('\n')) {
+    if (!insideWritingWrapper && /^\s*:::writing(?:\s*\{[^}\r\n]*\})?\s*$/.test(line)) {
+      insideWritingWrapper = true;
+      continue;
+    }
+    if (insideWritingWrapper && /^\s*:::\s*$/.test(line)) {
+      insideWritingWrapper = false;
+      continue;
+    }
+    lines.push(line);
+  }
+
+  return lines.join('\n');
+}
+
+function protectMarkdownCode(source: string): { source: string; restore: (value: string) => string } {
+  const protectedValues: string[] = [];
+  const token = (index: number) => `CHATGPT_PDF_CODE_${index}_TOKEN`;
+  const protectedSource = source.replace(/(`{3,}|~{3,})[\s\S]*?\1|`[^`\n]+`/g, (value) => {
+    const index = protectedValues.push(value) - 1;
+    return token(index);
+  });
+
+  return {
+    source: protectedSource,
+    restore: (value) => value.replace(/CHATGPT_PDF_CODE_(\d+)_TOKEN/g, (_match, index: string) => protectedValues[Number(index)] || '')
+  };
+}
+
 /**
  * Converts LaTeX delimiter styles that remark-parse would destroy via
  * CommonMark backslash-escape processing into remark-math's expected
@@ -177,19 +210,24 @@ function normalizeLatexEnvironments(source: string): string {
       .replace(/\\end\{align\*?\}/g, '\\end{aligned}')
       .replace(/\\begin\{gather\*?\}/g, '\\begin{gathered}')
       .replace(/\\end\{gather\*?\}/g, '\\end{gathered}');
-    return `${delimiter}${normalized}${delimiter}`;
+    return delimiter === '$$'
+      ? `$$\n${normalized.trim()}\n$$`
+      : `$${normalized}$`;
   });
 }
 
 export function normalizeLatexDelimiters(source: string): string {
+  const protectedCode = protectMarkdownCode(source);
+  source = protectedCode.source;
+
   // Display math: \[...\]  →  $$...$$
   // Non-greedy, dotAll (s flag), handles multiline equations
-  source = source.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => `$$${inner}$$`);
+  source = source.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => `$$\n${inner.trim()}\n$$`);
 
   // Inline math: \(...\)  →  $...$
   source = source.replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner) => `$${inner}$`);
 
-  return normalizeLatexEnvironments(source);
+  return protectedCode.restore(normalizeLatexEnvironments(source));
 }
 
 function collectMarkdownFromNode(node: any, $: ReturnType<typeof load>, state?: { orderedIndex: number }): string {
@@ -289,7 +327,7 @@ function htmlToMarkdownSource(html: string): string {
 }
 
 export async function markdownToHtml(markdown: string): Promise<string> {
-  const source = normalizeMarkdownSource(markdown);
+  const source = stripChatWritingWrappers(normalizeMarkdownSource(markdown));
   if (!source) return '';
 
   const normalizedSource = normalizeLatexDelimiters(source);
@@ -414,9 +452,10 @@ async function buildHtml(conv: ParsedConversation) {
     .msg .body :where(.callout){margin:1rem 0;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0}
     .msg .body :where(.callout-label){font-size:10px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700;color:#64748b;margin-bottom:4px}
     .msg .body :where(.callout-body){font-size:13px;line-height:1.65;color:#0f172a}
-    .msg .body :where(.math-block){background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:16px 14px;margin:1rem 0;text-align:center;overflow-x:auto;break-inside:avoid;page-break-inside:avoid}
+    .msg .body :where(.math-block){background:#f8fafc;border:0;border-radius:12px;padding:16px 14px;margin:1rem 0;text-align:center;overflow-x:auto;break-inside:avoid;page-break-inside:avoid;font-size:1.15em}
     .msg .body :where(.math-block--result){border-color:#cbd5e1;background:#f1f5f9;box-shadow:inset 0 0 0 1px rgba(148,163,184,0.12)}
-    .msg .body :where(.katex-display){margin:0;overflow-x:auto;page-break-inside:avoid;break-inside:avoid}
+    .msg .body :where(.katex-display){margin:0;overflow-x:auto;page-break-inside:avoid;break-inside:avoid;font-size:1.1em}
+    .msg .body :where(.katex,.katex *){word-break:normal;overflow-wrap:normal}
     .msg .body :where(.katex){white-space:nowrap;font-size:1em}
     .msg .body :where(.katex-display > .katex){display:block}
     .msg .body :where(pre,.katex-display,.math-block){break-inside:avoid;page-break-inside:avoid}

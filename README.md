@@ -46,6 +46,10 @@ annotation is recovered before Markdown conversion so expressions are not discar
 KaTeX fonts are embedded in the generated document because Puppeteer's `setContent`
 pages do not have a filesystem base URL for relative font assets.
 
+ChatGPT `:::writing{...}` wrappers are removed only when they occupy a complete
+standalone line; literal LaTeX inside Markdown code spans and fenced code blocks is
+left unchanged.
+
 This repository contains both the frontend pages and the API routes that perform retrieval, parsing, formatting, and PDF rendering.
 
 ---
