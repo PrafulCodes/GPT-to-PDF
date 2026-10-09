@@ -20,6 +20,7 @@ const nextConfig = {
     '@sparticuz/chromium-min',
     'puppeteer-core',
     'puppeteer',
+    'mathjax-full',
   ],
   webpack: (config, { isServer }) => {
     if (isServer) {
@@ -28,6 +29,7 @@ const nextConfig = {
         '@sparticuz/chromium-min',
         'puppeteer-core',
         'puppeteer',
+        'mathjax-full',
       ];
     }
     return config;
@@ -67,5 +69,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-
 

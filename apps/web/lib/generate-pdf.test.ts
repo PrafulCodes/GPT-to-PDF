@@ -5,6 +5,7 @@ import {
   normalizeLatexDelimiters,
   restoreRenderedMathSource
 } from './generate-pdf';
+import { renderMathSource } from './math-renderer';
 
 test('normalizes all supported delimiter styles without changing TeX', () => {
   const source = String.raw`\(\frac{a+b}{c+d}\) and \[\sum_{n=1}^{\infty}\frac{1}{n^2}\]`;
@@ -34,7 +35,7 @@ $$
 `);
 
   assert.match(html, /class="katex"/);
-  assert.match(html, /class="katex-display"/);
+  assert.match(html, /class="katex-display"|mjx-container/);
   assert.doesNotMatch(html, /katex-error/);
   assert.match(html, /π|alpha/);
   assert.doesNotMatch(html, /<hr\b/i);
@@ -75,4 +76,18 @@ test('preserves legitimate Markdown horizontal rules', async () => {
   const html = await markdownToHtml('Before\n\n---\n\nAfter');
 
   assert.match(html, /<hr>/);
+});
+
+test('routes unsupported KaTeX environments to MathJax without duplication', () => {
+  const rendered = renderMathSource(String.raw`\begin{align}f(x)&=x^2+1\\g(x)&=x+1\end{align}`, true);
+
+  assert.equal(rendered.engine, 'mathjax');
+  assert.match(rendered.html, /mjx-container/);
+});
+
+test('records the selected math engine in generated markup', async () => {
+  const html = await markdownToHtml(String.raw`Inline $\alpha+\beta$`);
+
+  assert.match(html, /math-engine-katex/);
+  assert.doesNotMatch(html, /GPTPDFMATH\d+TOKEN/);
 });

@@ -13,11 +13,11 @@
     "@repo/analytics": "*",
     "@sparticuz/chromium-min": "^133.0.0",
     "@upstash/ratelimit": "^2.0.8",
-
     "@upstash/redis": "^1.38.0",
     "autoprefixer": "^10.4.0",
     "cheerio": "^1.0.0-rc.12",
     "katex": "^0.16.47",
+    "mathjax-full": "^3.2.1",
     "next": "^15.0.0",
     "postcss": "^8.4.0",
     "puppeteer": "^25.0.4",

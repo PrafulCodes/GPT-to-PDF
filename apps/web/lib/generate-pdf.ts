@@ -7,15 +7,14 @@ import { load } from 'cheerio';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
-import rehypeKatex from 'rehype-katex';
 import rehypeStringify from 'rehype-stringify';
 import puppeteerCore from 'puppeteer-core';
 import fs from 'fs';
 import path from 'path';
 import { ParsedConversation } from './parse-chat';
 import { creatorName, creatorUrl, siteHost, siteUrl } from './branding';
+import { renderMathSource } from './math-renderer';
 
 export type PdfTiming = {
   htmlGenerationMs: number;
@@ -206,8 +205,6 @@ function normalizeLatexEnvironments(source: string): string {
     const normalized = content
       .replace(/\\begin\{(?:equation|equation\*)\}/g, '')
       .replace(/\\end\{(?:equation|equation\*)\}/g, '')
-      .replace(/\\begin\{align\*?\}/g, '\\begin{aligned}')
-      .replace(/\\end\{align\*?\}/g, '\\end{aligned}')
       .replace(/\\begin\{gather\*?\}/g, '\\begin{gathered}')
       .replace(/\\end\{gather\*?\}/g, '\\end{gathered}');
     return delimiter === '$$'
@@ -331,17 +328,42 @@ export async function markdownToHtml(markdown: string): Promise<string> {
   if (!source) return '';
 
   const normalizedSource = normalizeLatexDelimiters(source);
+  const mathTokens: Array<{ token: string; html: string; displayMode: boolean }> = [];
+  const protectedCode = protectMarkdownCode(normalizedSource);
+  const tokenizedSource = protectedCode.source.replace(
+    /(\$\$)([\s\S]*?)\1|(?<!\\)\$([^\n$]+?)(?<!\\)\$/g,
+    (_match, displayDelimiter: string | undefined, displaySource: string | undefined, inlineSource: string | undefined) => {
+      const displayMode = Boolean(displayDelimiter);
+      const mathSource = (displaySource ?? inlineSource ?? '').trim();
+      const token = `GPTPDFMATH${mathTokens.length}TOKEN`;
+      const rendered = renderMathSource(mathSource, displayMode);
+      mathTokens.push({
+        token,
+        html: displayMode
+          ? `<div class="math-block math-block--display math-engine-${rendered.engine}">${rendered.html}</div>`
+          : `<span class="math-expression math-engine-${rendered.engine}">${rendered.html}</span>`,
+        displayMode
+      });
+      return displayMode ? `\n\n${token}\n\n` : token;
+    }
+  );
 
   const file = await unified()
     .use(remarkParse)
     .use(remarkGfm)
-    .use(remarkMath)
     .use(remarkRehype, { allowDangerousHtml: false })
-    .use(rehypeKatex)
     .use(rehypeStringify)
-    .process(normalizedSource);
+    .process(protectedCode.restore(tokenizedSource));
 
-  return String(file);
+  let html = String(file);
+  for (const mathToken of mathTokens) {
+    const escapedToken = mathToken.token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const displayPattern = new RegExp(`<p>\\s*${escapedToken}\\s*</p>`, 'g');
+    html = html.replace(displayPattern, mathToken.html);
+    html = html.replace(new RegExp(escapedToken, 'g'), mathToken.html);
+  }
+
+  return html;
 }
 
 async function markdownToAcademicHtml(markdown: string): Promise<string> {
