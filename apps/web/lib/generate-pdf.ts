@@ -59,13 +59,31 @@ function sanitizeMessageHtml(html: string): string {
     .trim();
 }
 
-function stripRenderedMathHtml(html: string): string {
+export function restoreRenderedMathSource(html: string): string {
   if (!html) return '';
 
   const $ = load(`<div id="root">${html}</div>`, undefined, false);
   const root = $('#root');
 
-  root.find('.katex, .katex-display, .MathJax, .MathJax_Display, math, annotation, semantics').remove();
+  // ChatGPT may return already-rendered KaTeX. Removing it loses the original
+  // TeX, so recover the source annotation before the Markdown pass.
+  root.find('.katex-display').each((_, element) => {
+    const source = $(element).find('annotation[encoding="application/x-tex"]').first().text();
+    if (source) $(element).replaceWith(`$$${source}$$`);
+  });
+  root.find('.katex').each((_, element) => {
+    if ($(element).closest('.katex-display').length > 0) return;
+    const source = $(element).find('annotation[encoding="application/x-tex"]').first().text();
+    if (source) $(element).replaceWith(`$${source}$`);
+  });
+
+  // MathJax output has the same source in an annotation. Preserve it too.
+  root.find('.MathJax_Display, .MathJax').each((_, element) => {
+    const source = $(element).find('annotation[encoding="application/x-tex"]').first().text();
+    if (source) $(element).replaceWith($(element).hasClass('MathJax_Display') ? `$$${source}$$` : `$${source}$`);
+  });
+
+  root.find('math, annotation, semantics').remove();
 
   return root.html()?.trim() || '';
 }
@@ -114,26 +132,6 @@ function stylizeAcademicHtml(html: string): string {
     }
   });
 
-  const hasRenderedMath = root.find('.katex, .katex-display').length > 0;
-  if (hasRenderedMath) {
-    root.find('p, div, span, li').each((_, element) => {
-      const node = $(element);
-      const text = node.text().replace(/\s+/g, ' ').trim();
-
-      if (!text) return;
-
-      const looksLikeStrayMath =
-        text.length <= 140 &&
-        !/[.!?]/.test(text) &&
-        /[\\^_{}=+\-*/√∑∫π∞<>\[\]0-9]/.test(text) &&
-        !/[A-Za-z]{4,}/.test(text);
-
-      if (looksLikeStrayMath && !node.hasClass('math-block') && !node.hasClass('step-card') && !node.hasClass('callout')) {
-        node.remove();
-      }
-    });
-  }
-
   root.find('.math-block--display').each((_, element) => {
     const node = $(element);
     if (node.find('.katex-display').length > 0 && !node.hasClass('math-block--result')) {
@@ -147,7 +145,7 @@ function stylizeAcademicHtml(html: string): string {
   return root.html()?.trim() || '';
 }
 
-function normalizeMarkdownSource(input: string): string {
+export function normalizeMarkdownSource(input: string): string {
   return input
     .replace(/\r\n?/g, '\n')
     .replace(/\u00a0/g, ' ')
@@ -170,7 +168,20 @@ function normalizeMarkdownSource(input: string): string {
  * Leaves existing $$...$$ and $...$ untouched.
  * Uses non-greedy matching with dotAll so multiline equations are captured.
  */
-function normalizeLatexDelimiters(source: string): string {
+function normalizeLatexEnvironments(source: string): string {
+  return source.replace(/(\$\$|(?<!\$)\$)([\s\S]*?)\1/g, (_match, delimiter: string, content: string) => {
+    const normalized = content
+      .replace(/\\begin\{(?:equation|equation\*)\}/g, '')
+      .replace(/\\end\{(?:equation|equation\*)\}/g, '')
+      .replace(/\\begin\{align\*?\}/g, '\\begin{aligned}')
+      .replace(/\\end\{align\*?\}/g, '\\end{aligned}')
+      .replace(/\\begin\{gather\*?\}/g, '\\begin{gathered}')
+      .replace(/\\end\{gather\*?\}/g, '\\end{gathered}');
+    return `${delimiter}${normalized}${delimiter}`;
+  });
+}
+
+export function normalizeLatexDelimiters(source: string): string {
   // Display math: \[...\]  →  $$...$$
   // Non-greedy, dotAll (s flag), handles multiline equations
   source = source.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => `$$${inner}$$`);
@@ -178,14 +189,14 @@ function normalizeLatexDelimiters(source: string): string {
   // Inline math: \(...\)  →  $...$
   source = source.replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner) => `$${inner}$`);
 
-  return source;
+  return normalizeLatexEnvironments(source);
 }
 
 function collectMarkdownFromNode(node: any, $: ReturnType<typeof load>, state?: { orderedIndex: number }): string {
   if (!node) return '';
 
   if (node.type === 'text') {
-    return normalizeMarkdownSource(node.data || '');
+    return node.data || '';
   }
 
   if (node.type !== 'tag') return '';
@@ -277,7 +288,7 @@ function htmlToMarkdownSource(html: string): string {
     .trim();
 }
 
-async function markdownToHtml(markdown: string): Promise<string> {
+export async function markdownToHtml(markdown: string): Promise<string> {
   const source = normalizeMarkdownSource(markdown);
   if (!source) return '';
 
@@ -307,7 +318,24 @@ function getKatexCss(): string {
 
   try {
     const cssPath = require.resolve('katex/dist/katex.min.css');
-    cachedKatexCss = fs.readFileSync(cssPath, 'utf8');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const cssDirectory = path.dirname(cssPath);
+
+    // page.setContent() creates an about:blank document, so relative font
+    // URLs in KaTeX's stylesheet otherwise fail to load in Chromium.
+    cachedKatexCss = css.replace(/url\((['"]?)(fonts\/[^)'"]+)\1\)/g, (match, _quote: string, relativePath: string) => {
+      const fontPath = path.join(cssDirectory, relativePath);
+      if (!fs.existsSync(fontPath)) return match;
+
+      const extension = path.extname(fontPath).toLowerCase();
+      const mimeType = extension === '.woff2'
+        ? 'font/woff2'
+        : extension === '.woff'
+          ? 'font/woff'
+          : 'font/ttf';
+      const font = fs.readFileSync(fontPath).toString('base64');
+      return `url(data:${mimeType};base64,${font})`;
+    });
   } catch {
     cachedKatexCss = '';
   }
@@ -335,7 +363,7 @@ async function buildHtml(conv: ParsedConversation) {
     conv.messages.map(async (m) => {
       const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
       // Strip images and SVG to avoid large render artifacts in PDF and speed rendering
-      const cleanedHtml = stripRenderedMathHtml(
+      const cleanedHtml = restoreRenderedMathSource(
         sanitizeMessageHtml((m.html || '').replace(/<img[\s\S]*?>/gi, ''))
       );
       const markdownSource = htmlToMarkdownSource(cleanedHtml);
@@ -553,12 +581,17 @@ export async function generatePdf(
     });
     timing.pageRenderMs = Date.now() - renderStart;
 
-    // Measure font readiness without blocking long
-    try {
-      await page.evaluate(() => (document as any).fonts ? (document as any).fonts.ready : Promise.resolve());
-    } catch (e) {
-      // ignore
-    }
+    await page.evaluate(async () => {
+      if (document.fonts) await document.fonts.ready;
+      const mathErrors = document.querySelectorAll('.katex-error');
+      if (mathErrors.length > 0) {
+        throw new Error(`KaTeX failed to render ${mathErrors.length} expression(s)`);
+      }
+    });
+    await page.waitForFunction(
+      () => !document.fonts || document.fonts.status === 'loaded',
+      { timeout: Math.max(5000, Math.min(timeoutMs, 15000)) }
+    );
 
     const pdfStart = Date.now();
 

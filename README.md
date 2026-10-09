@@ -19,6 +19,7 @@ Badges: ![Vercel](https://img.shields.io/badge/deploy-vercel-000000?style=flat&l
 - Convert ChatGPT shared links to PDF
 - Beautiful, premium PDF formatting and typographic defaults
 - Markdown rendering with code block support and syntax highlighting
+- KaTeX rendering for inline/display LaTeX, including multiline environments and matrices
 - Mobile-friendly UI and responsive PDFs
 - No login required; works with public ChatGPT shared links
 - No browser extension needed — server-side PDF generation
@@ -35,6 +36,15 @@ Badges: ![Vercel](https://img.shields.io/badge/deploy-vercel-000000?style=flat&l
 4. The server formats the conversation into a printable HTML template.
 5. Puppeteer/Puppeteer-core renders the HTML and generates a premium PDF.
 6. PDF is streamed back for instant download.
+
+### Mathematical content
+
+The PDF pipeline renders `$...$`, `$$...$$`, `\(...\)`, and `\[...\]` with KaTeX. Common
+equation, alignment, gather, cases, and matrix environments are supported. If a shared
+conversation already contains browser-rendered KaTeX or MathJax, the original TeX
+annotation is recovered before Markdown conversion so expressions are not discarded.
+KaTeX fonts are embedded in the generated document because Puppeteer's `setContent`
+pages do not have a filesystem base URL for relative font assets.
 
 This repository contains both the frontend pages and the API routes that perform retrieval, parsing, formatting, and PDF rendering.
 
@@ -205,4 +215,3 @@ Created by Praful Mohite
 
 - Uses `puppeteer-core` + `@sparticuz/chromium` for headless Chrome compatible with Vercel serverless.
 - Parser uses heuristics; OpenAI markup can change — error handling is included.
-
