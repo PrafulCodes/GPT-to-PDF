@@ -59,26 +59,25 @@ export default function AboutPage() {
 
         <section aria-labelledby="about-heading" className="px-4">
           <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl p-6 md:p-10 shadow-sm">
-            <h1 id="about-heading" className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-8">About</h1>
+            <h1 id="about-heading" className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-8">About GPTtoPDF</h1>
 
             <div className="space-y-6 text-slate-600 leading-relaxed md:text-lg">
               <p>
-                <strong>GPTtoPDF</strong> is a free web tool designed to solve a very specific problem: saving AI conversations without losing their readability. 
-                When people try to save or print long chats, they often find that standard browser printing breaks code blocks, misaligns tables, and splits paragraphs awkwardly across pages.
+                <strong>GPTtoPDF</strong> is a free web tool that turns a public ChatGPT shared link into a clean, formatted PDF with code blocks, LaTeX math and tables intact. It was created by Praful Mohite to solve one specific problem well: saving an AI conversation without losing the structure that made it useful.
               </p>
               
               <p>
-                We built this <strong>ChatGPT Link to PDF Converter</strong> to ensure that every export looks as clean as the original conversation. By prioritizing <strong>formatting preservation</strong>, we make sure that headings, lists, nested code, and complex equations survive the transition to a document format.
+                AI conversations have become working documents. People use them to debug code, work through problems, draft reports and research unfamiliar topics. Copy and paste flattens code and tables, screenshots cannot be searched, and browser printing often clips code, misaligns tables and splits paragraphs in the wrong places.
               </p>
 
-              <h2 className="text-2xl font-bold text-slate-900 mt-10 mb-4">Our Approach</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mt-10 mb-4">What GPTtoPDF Does</h2>
               
               <p>
-                A core part of our philosophy is keeping things simple and private. The tool requires <strong>no login</strong> and there is no need to install a browser extension. It is intentionally lightweight and <strong>mobile friendly</strong>, allowing you to generate PDFs directly from your phone or desktop using just a shared link.
+                You create a share link in ChatGPT, paste it into GPTtoPDF and download the PDF. The tool works only with public shared links. It never asks for your ChatGPT login and cannot see private conversations. Headings, lists, code blocks, tables and LaTeX formulas are preserved wherever possible, with no extension and no signup.
               </p>
 
               <p>
-                We believe utility tools should be fast, reliable, and out of your way. Our goal is simply to give you a clean, readable export whenever you need to archive a valuable AI interaction.
+                Utility tools earn trust by collecting less. The conversation is held in memory only long enough to create the file. Neither the conversation nor the generated PDF is written to a database or file storage, and neither is kept after delivery.
               </p>
 
               <div className="mt-10 p-6 bg-slate-50 border border-slate-100 rounded-xl">

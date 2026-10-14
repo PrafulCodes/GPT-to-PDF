@@ -8,7 +8,33 @@ export type Message = {
 export type ParsedConversation = {
   title: string;
   messages: Message[];
+  stats?: ConversationStats;
 };
+
+export type ConversationStats = {
+  messages: number;
+  equations: number;
+  codeBlocks: number;
+  tables: number;
+  blockquotes: number;
+};
+
+export function getConversationStats(messages: Message[]): ConversationStats {
+  const source = messages.map((message) => message.html).join('\n');
+  const count = (pattern: RegExp) => (source.match(pattern) || []).length;
+  return {
+    messages: messages.length,
+    equations:
+      count(/\\\([\s\S]*?\\\)/g) +
+      count(/\\\[[\s\S]*?\\\]/g) +
+      count(/\$\$[\s\S]*?\$\$/g) +
+      count(/(?<!\\)\$(?!\$)[^\n$]+?(?<!\\)\$(?!\$)/g) +
+      count(/\\begin\{(?:align|aligned|gather|equation)\*?\}/g),
+    codeBlocks: (source.match(/<pre\b/gi) || []).length,
+    tables: (source.match(/<table\b/gi) || []).length,
+    blockquotes: (source.match(/<blockquote\b/gi) || []).length
+  };
+}
 
 const JUNK_TEXT_PATTERNS = [
   /original custom instructions no longer available/i,
@@ -263,7 +289,7 @@ function parseFromStructuredHydration(html: string): ParsedConversation | null {
 
     if (messages.length === 0) return null;
 
-    return { title, messages };
+    return { title, messages, stats: getConversationStats(messages) };
   } catch {
     return null;
   }
@@ -325,7 +351,7 @@ export function parseChatHtml(html: string): ParsedConversation {
         return { ...message, role };
       });
 
-      return { title, messages: normalized };
+      return { title, messages: normalized, stats: getConversationStats(normalized) };
     }
   }
 
@@ -333,5 +359,5 @@ export function parseChatHtml(html: string): ParsedConversation {
   const structured = parseFromStructuredHydration(html);
   if (structured) return structured;
 
-  return { title, messages: [] };
+  return { title, messages: [], stats: getConversationStats([]) };
 }

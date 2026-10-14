@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import SeoLandingPage from '../../components/SeoLandingPage';
 import { siteUrl } from '../../lib/branding';
+import { permanentRedirect } from 'next/navigation';
 
 const pageUrl = `${siteUrl}/chatgpt-export-tool`;
 
@@ -62,6 +63,7 @@ export const metadata: Metadata = {
 };
 
 export default function ChatGPTExportToolPage() {
+  permanentRedirect('/');
   return (
     <SeoLandingPage
       pageUrl={pageUrl}

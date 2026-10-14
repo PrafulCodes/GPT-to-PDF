@@ -12,7 +12,7 @@ import rehypeStringify from 'rehype-stringify';
 import puppeteerCore from 'puppeteer-core';
 import fs from 'fs';
 import path from 'path';
-import { ParsedConversation } from './parse-chat';
+import { ParsedConversation, getConversationStats } from './parse-chat';
 import { creatorName, creatorUrl, siteHost, siteUrl } from './branding';
 import { renderMathSource } from './math-renderer';
 
@@ -22,6 +22,15 @@ export type PdfTiming = {
   pageRenderMs: number;
   pdfGenerateMs: number;
 };
+
+export type PdfFailureStage = 'deadline' | 'html_generation' | 'chromium_launch' | 'page_render' | 'pdf_generation';
+
+export type PdfDeadline = {
+  at: number;
+  remainingMs: () => number;
+};
+
+const MESSAGE_RENDER_CONCURRENCY = 2;
 
 const defaultTiming = (): PdfTiming => ({
   htmlGenerationMs: 0,
@@ -213,6 +222,80 @@ function normalizeLatexEnvironments(source: string): string {
   });
 }
 
+function findDelimitedMath(source: string, start: number, delimiter: string) {
+  const end = source.indexOf(delimiter, start);
+  if (end < 0) return null;
+  const content = source.slice(start, end);
+  if (!content.trim()) return null;
+  return { end: end + delimiter.length, content };
+}
+
+function renderMathTokens(source: string) {
+  const tokens: Array<{ token: string; html: string }> = [];
+  let output = '';
+  let index = 0;
+
+  const addToken = (content: string, displayMode: boolean) => {
+    const token = `GPTPDFMATH${tokens.length}TOKEN`;
+    const rendered = renderMathSource(content.trim(), displayMode);
+    tokens.push({
+      token,
+      html: displayMode
+        ? `<div class="math-block math-block--display math-engine-${rendered.engine}">${rendered.html}</div>`
+        : `<span class="math-expression math-engine-${rendered.engine}">${rendered.html}</span>`
+    });
+    output += displayMode ? `\n\n${token}\n\n` : token;
+  };
+
+  while (index < source.length) {
+    if (source.startsWith('$$', index)) {
+      const match = findDelimitedMath(source, index + 2, '$$');
+      if (match) {
+        addToken(match.content, true);
+        index = match.end;
+        continue;
+      }
+    }
+    if (source.startsWith('\\[', index)) {
+      const match = findDelimitedMath(source, index + 2, '\\]');
+      if (match) {
+        addToken(match.content, true);
+        index = match.end;
+        continue;
+      }
+    }
+    if (source.startsWith('\\(', index)) {
+      const match = findDelimitedMath(source, index + 2, '\\)');
+      if (match) {
+        addToken(match.content, false);
+        index = match.end;
+        continue;
+      }
+    }
+    if (source[index] === '$' && source[index - 1] !== '\\' && source[index + 1] !== '$') {
+      const match = findDelimitedMath(source, index + 1, '$');
+      if (match && !/^\s*\d/.test(match.content)) {
+        addToken(match.content, false);
+        index = match.end;
+        continue;
+      }
+    }
+    const environment = source.slice(index).match(/^\\begin\{([a-zA-Z*]+)\}/);
+    if (environment) {
+      const endDelimiter = `\\end{${environment[1]}}`;
+      const end = source.indexOf(endDelimiter, index + environment[0].length);
+      if (end >= 0) {
+        addToken(source.slice(index, end + endDelimiter.length), true);
+        index = end + endDelimiter.length;
+        continue;
+      }
+    }
+    output += source[index++];
+  }
+
+  return { source: output, tokens };
+}
+
 export function normalizeLatexDelimiters(source: string): string {
   const protectedCode = protectMarkdownCode(source);
   source = protectedCode.source;
@@ -328,25 +411,9 @@ export async function markdownToHtml(markdown: string): Promise<string> {
   if (!source) return '';
 
   const normalizedSource = normalizeLatexDelimiters(source);
-  const mathTokens: Array<{ token: string; html: string; displayMode: boolean }> = [];
   const protectedCode = protectMarkdownCode(normalizedSource);
-  const tokenizedSource = protectedCode.source.replace(
-    /(\$\$)([\s\S]*?)\1|(?<!\\)\$([^\n$]+?)(?<!\\)\$/g,
-    (_match, displayDelimiter: string | undefined, displaySource: string | undefined, inlineSource: string | undefined) => {
-      const displayMode = Boolean(displayDelimiter);
-      const mathSource = (displaySource ?? inlineSource ?? '').trim();
-      const token = `GPTPDFMATH${mathTokens.length}TOKEN`;
-      const rendered = renderMathSource(mathSource, displayMode);
-      mathTokens.push({
-        token,
-        html: displayMode
-          ? `<div class="math-block math-block--display math-engine-${rendered.engine}">${rendered.html}</div>`
-          : `<span class="math-expression math-engine-${rendered.engine}">${rendered.html}</span>`,
-        displayMode
-      });
-      return displayMode ? `\n\n${token}\n\n` : token;
-    }
-  );
+  const tokenized = renderMathTokens(protectedCode.source);
+  const tokenizedSource = tokenized.source;
 
   const file = await unified()
     .use(remarkParse)
@@ -356,7 +423,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
     .process(protectedCode.restore(tokenizedSource));
 
   let html = String(file);
-  for (const mathToken of mathTokens) {
+  for (const mathToken of tokenized.tokens) {
     const escapedToken = mathToken.token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const displayPattern = new RegExp(`<p>\\s*${escapedToken}\\s*</p>`, 'g');
     html = html.replace(displayPattern, mathToken.html);
@@ -417,20 +484,59 @@ function getFaviconDataUrl(): string {
   return _faviconDataUrl;
 }
 
-async function buildHtml(conv: ParsedConversation) {
+export function createPdfDeadline(durationMs: number): PdfDeadline {
+  const at = Date.now() + durationMs;
+  return {
+    at,
+    remainingMs: () => Math.max(0, at - Date.now())
+  };
+}
+
+function assertDeadline(deadline: PdfDeadline) {
+  if (deadline.remainingMs() <= 0) {
+    throw new Error('PDF generation exceeded the safe execution budget');
+  }
+}
+
+async function renderMessageHtml(message: ParsedConversation['messages'][number], deadline: PdfDeadline) {
+  assertDeadline(deadline);
+  const cls = message.role === 'user' ? 'msg user' : 'msg assistant';
+  // Strip images and SVG to avoid large render artifacts in PDF and speed rendering
+  const restoredMathHtml = restoreRenderedMathSource((message.html || '').replace(/<img[\s\S]*?>/gi, ''));
+  const cleanedHtml = sanitizeMessageHtml(restoredMathHtml);
+  const markdownSource = htmlToMarkdownSource(cleanedHtml);
+  const bodyHtml = await markdownToAcademicHtml(markdownSource);
+  assertDeadline(deadline);
+  return `<section class="${cls}"><div class="header">${message.role.toUpperCase()}</div><div class="body">${bodyHtml}</div></section>`;
+}
+
+export async function renderMessagesHtml(
+  messages: ParsedConversation['messages'],
+  deadline: PdfDeadline,
+  concurrency = MESSAGE_RENDER_CONCURRENCY,
+  renderMessage: (message: ParsedConversation['messages'][number], deadline: PdfDeadline) => Promise<string> = renderMessageHtml
+) {
+  const sections = new Array<string>(messages.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(concurrency, messages.length || 1));
+
+  async function worker() {
+    while (true) {
+      assertDeadline(deadline);
+      const index = nextIndex++;
+      if (index >= messages.length) return;
+      sections[index] = await renderMessage(messages[index], deadline);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return sections.join('\n');
+}
+
+export async function buildHtml(conv: ParsedConversation, deadline: PdfDeadline) {
   // faviconDataUrl no longer embedded in body — it's used in the PDF footerTemplate instead.
-  const messagesHtml = await Promise.all(
-    conv.messages.map(async (m) => {
-      const cls = m.role === 'user' ? 'msg user' : 'msg assistant';
-      // Strip images and SVG to avoid large render artifacts in PDF and speed rendering
-      const cleanedHtml = restoreRenderedMathSource(
-        sanitizeMessageHtml((m.html || '').replace(/<img[\s\S]*?>/gi, ''))
-      );
-      const markdownSource = htmlToMarkdownSource(cleanedHtml);
-      const bodyHtml = await markdownToAcademicHtml(markdownSource);
-      return `<section class="${cls}"><div class="header">${m.role.toUpperCase()}</div><div class="body">${bodyHtml}</div></section>`;
-    })
-  ).then((sections) => sections.join('\n'));
+  const messagesHtml = await renderMessagesHtml(conv.messages, deadline);
+  assertDeadline(deadline);
 
   // Minimal, performance-optimized HTML for PDF rendering:
   // NOTE: The pdf-footer is intentionally removed from HTML — branding is
@@ -509,7 +615,10 @@ async function getLaunchOptions() {
 
   let launchOptions: any = {
     defaultViewport: { width: 900, height: 1120 },
-    ignoreHTTPSErrors: true
+    ignoreHTTPSErrors: true,
+    // Keep Puppeteer's protocol deadline aligned with the route's 55s absolute
+    // budget. The outer deadline remains authoritative and fails sooner.
+    protocolTimeout: 55_000
   };
 
   const fs = require('fs');
@@ -613,46 +722,83 @@ export function prewarmBrowser() {
 
 export async function generatePdf(
   conv: ParsedConversation,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  deadline = createPdfDeadline(timeoutMs)
 ): Promise<
   { ok: true; buffer: Buffer; timing: PdfTiming } |
-  { ok: false; reason: string; timing: PdfTiming }
+  { ok: false; reason: string; stage: PdfFailureStage; timing: PdfTiming }
 > {
   const timing = defaultTiming();
   const start = Date.now();
   let page: Page | null = null;
+  let stage: PdfFailureStage = 'html_generation';
+
+  const runWithDeadline = async <T>(
+    operation: Promise<T>,
+    operationStage: PdfFailureStage,
+    cleanupLateResult?: (value: T) => Promise<void>
+  ): Promise<T> => {
+    stage = operationStage;
+    const remaining = deadline.remainingMs();
+    if (remaining <= 0) throw new Error('PDF generation exceeded the safe execution budget');
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    if (cleanupLateResult) {
+      void operation.then((value) => {
+        if (timedOut) {
+          void cleanupLateResult(value).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+    const deadlinePromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        reject(new Error('PDF generation exceeded the safe execution budget'));
+      }, remaining);
+    });
+
+    try {
+      return await Promise.race([operation, deadlinePromise]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
 
   try {
     const htmlStart = Date.now();
+    stage = 'html_generation';
     // Resolve favicon once (cached after first call) so footerTemplate can embed it.
     const faviconDataUrl = getFaviconDataUrl();
-    const html = await buildHtml(conv);
+    const html = await buildHtml(conv, deadline);
     timing.htmlGenerationMs = Date.now() - htmlStart;
 
     const launchStart = Date.now();
-    const browser = await getSharedBrowser();
+    const browser = await runWithDeadline(getSharedBrowser(), 'chromium_launch');
     timing.chromiumLaunchMs = Date.now() - launchStart;
 
-    page = await browser.newPage();
+    page = await runWithDeadline(browser.newPage(), 'chromium_launch', async (latePage) => {
+      await latePage.close();
+    });
 
     const renderStart = Date.now();
-    await page.setContent(html, {
+    await runWithDeadline(page.setContent(html, {
       waitUntil: 'domcontentloaded',
-      timeout: Math.max(10000, timeoutMs)
-    });
+      timeout: Math.max(1000, deadline.remainingMs())
+    }), 'page_render');
     timing.pageRenderMs = Date.now() - renderStart;
 
-    await page.evaluate(async () => {
+    await runWithDeadline(page.evaluate(async () => {
       if (document.fonts) await document.fonts.ready;
-      const mathErrors = document.querySelectorAll('.katex-error');
+      const mathErrors = document.querySelectorAll('.katex-error, mjx-merror');
       if (mathErrors.length > 0) {
         throw new Error(`KaTeX failed to render ${mathErrors.length} expression(s)`);
       }
-    });
-    await page.waitForFunction(
+    }), 'page_render');
+    await runWithDeadline(page.waitForFunction(
       () => !document.fonts || document.fonts.status === 'loaded',
-      { timeout: Math.max(5000, Math.min(timeoutMs, 15000)) }
-    );
+      { timeout: Math.max(1000, Math.min(deadline.remainingMs(), 15000)) }
+    ), 'page_render');
 
     const pdfStart = Date.now();
 
@@ -699,7 +845,7 @@ export async function generatePdf(
       </div>
     `;
 
-    const pdf = await page.pdf({
+    const pdf = await runWithDeadline(page.pdf({
       format: 'A4',
       printBackground: true,
       // top/left/right margins: content breathing room.
@@ -709,10 +855,11 @@ export async function generatePdf(
       scale: 0.95,
       preferCSSPageSize: false,
       displayHeaderFooter: true,
+      timeout: Math.max(1000, Math.min(deadline.remainingMs(), 55_000)),
       // Header is empty — we only need the footer.
       headerTemplate: '<span></span>',
       footerTemplate
-    });
+    }), 'pdf_generation');
     timing.pdfGenerateMs = Date.now() - pdfStart;
 
     await page.close();
@@ -725,10 +872,10 @@ export async function generatePdf(
     } catch (_) {}
 
     const elapsed = Date.now() - start;
-    if (elapsed > timeoutMs) {
-      return { ok: false, reason: 'PDF generation timed out', timing };
+    if (elapsed > timeoutMs || String(err?.message ?? err).includes('safe execution budget')) {
+      return { ok: false, reason: 'PDF generation exceeded the safe execution budget', stage: 'deadline', timing };
     }
 
-    return { ok: false, reason: String(err?.message ?? err), timing };
+    return { ok: false, reason: String(err?.message ?? err), stage, timing };
   }
 }

@@ -8,6 +8,7 @@ export default function Navbar() {
         <div className="navbar-brand">GPT to PDF</div>
         <div className="navbar-links">
           <a href="#faq" className="navbar-link">FAQ</a>
+          <a href="/blog" className="navbar-link">Guides</a>
         </div>
       </div>
 

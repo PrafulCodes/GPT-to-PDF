@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPdfGeneratedCount } from '../../../lib/pdf-stats';
+import { bytesToMegabytes, getPdfGenerationStats } from '../../../lib/pdf-stats';
 import { enforceStatsRateLimit } from '../../../lib/abuse-protection';
 import { getClientIp, logSecurityEvent } from '../../../lib/security';
 
@@ -34,10 +34,23 @@ export async function GET(req: Request) {
   }
 
   try {
-    const pdfGeneratedCount = await getPdfGeneratedCount();
+    const stats = await getPdfGenerationStats();
+    if (!stats) {
+      return NextResponse.json(
+        { error: 'Statistics temporarily unavailable' },
+        { status: 503, headers: { 'Cache-Control': STATS_CACHE_CONTROL, 'Retry-After': '30' } }
+      );
+    }
 
-    return NextResponse.json({ pdfGeneratedCount }, { headers: { 'Cache-Control': STATS_CACHE_CONTROL } });
+    return NextResponse.json({
+      pdfGeneratedCount: stats.pdfGeneratedCount,
+      pdfGeneratedMegabytes: bytesToMegabytes(stats.pdfGeneratedBytes),
+      pdfGeneratedBytes: stats.pdfGeneratedBytes
+    }, { headers: { 'Cache-Control': STATS_CACHE_CONTROL } });
   } catch {
-    return NextResponse.json({ pdfGeneratedCount: 0 }, { headers: { 'Cache-Control': STATS_CACHE_CONTROL } });
+    return NextResponse.json(
+      { error: 'Statistics temporarily unavailable' },
+      { status: 503, headers: { 'Cache-Control': STATS_CACHE_CONTROL, 'Retry-After': '30' } }
+    );
   }
 }

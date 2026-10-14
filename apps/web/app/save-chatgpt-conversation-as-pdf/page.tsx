@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import SeoLandingPage from '../../components/SeoLandingPage';
 import { siteUrl } from '../../lib/branding';
+import { permanentRedirect } from 'next/navigation';
 
 const pageUrl = `${siteUrl}/save-chatgpt-conversation-as-pdf`;
 
@@ -64,6 +65,7 @@ export const metadata: Metadata = {
 };
 
 export default function SaveChatGPTConversationAsPdfPage() {
+  permanentRedirect('/');
   return (
     <SeoLandingPage
       pageUrl={pageUrl}

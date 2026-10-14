@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { siteUrl } from '../../lib/branding';
+import { permanentRedirect } from 'next/navigation';
 
 const pageUrl = `${siteUrl}/chatgpt-conversation-archive`;
 
@@ -64,6 +65,7 @@ export const metadata: Metadata = {
 };
 
 export default function ChatGPTConversationArchivePage() {
+  permanentRedirect('/blog/archiving-ai-research-and-prompt-engineering-outputs-for-teams');
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',

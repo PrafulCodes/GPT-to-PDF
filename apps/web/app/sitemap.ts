@@ -46,6 +46,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: 'weekly',
       priority: 0.4
+    },
+    {
+      url: `${siteUrl}/blog`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.8
+    },
+    ...[
+      'why-browser-printing-breaks-chatgpt-code-blocks-and-tables',
+      'archiving-ai-research-and-prompt-engineering-outputs-for-teams',
+      'legal-compliance-teams-document-llm-interactions-secure-pdfs'
+    ].map((slug) => ({
+      url: `${siteUrl}/blog/${slug}`,
+      lastModified,
+      changeFrequency: 'monthly' as const,
+      priority: 0.7
     }
+    ))
   ];
 }

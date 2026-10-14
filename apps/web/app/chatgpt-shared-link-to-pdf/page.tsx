@@ -59,7 +59,7 @@ const faqItems = [
   },
   {
     q: 'Is my ChatGPT conversation data stored anywhere?',
-    a: 'No. We fetch the page to generate the PDF and do not store your links, conversations, or any user data.'
+    a: 'No. We fetch the page to generate the PDF and do not store your conversations or generated PDFs.'
   },
   {
     q: 'Why is URL-based conversion better than using a Chrome extension?',

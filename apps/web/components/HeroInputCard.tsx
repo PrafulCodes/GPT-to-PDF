@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { parseContentDispositionFileName } from '../lib/pdf-filename';
 
 function getBrowserName() {
@@ -34,28 +34,57 @@ function getDeviceType() {
 
 
 
-type ProgressStage = 'idle' | 'fetching' | 'formatting' | 'generating' | 'preparing' | 'done';
-
-const stageMeta: Record<Exclude<ProgressStage, 'idle' | 'done'>, { label: string; hint: string }> = {
-  fetching: {
-    label: 'Fetching conversation…',
-    hint: 'Longer chats may take a moment — hang tight.'
-  },
-  formatting: {
-    label: 'Formatting content…',
-    hint: 'Longer chats may take a moment — hang tight.'
-  },
-  generating: {
-    label: 'Generating your PDF…',
-    hint: 'Longer chats may take a moment — hang tight.'
-  },
-  preparing: {
-    label: 'Preparing download…',
-    hint: 'Almost there — your file is nearly ready.'
-  }
+type ExportStatus = 'idle' | 'loading' | 'done';
+type ExportStats = {
+  messages: number;
+  equations: number;
+  codeBlocks: number;
+  tables: number;
+  blockquotes: number;
 };
 
-const stageOrder: Array<Exclude<ProgressStage, 'idle' | 'done'>> = ['fetching', 'formatting', 'generating', 'preparing'];
+const KITTEN_MESSAGES = [
+  'Kitten is organizing your conversation 🐈',
+  'Untangling those equations...',
+  'Your PDF is getting its finishing touches.'
+];
+
+const LONG_CONVERSATION_NOTICE_DELAY_MS = 4000;
+const EXTENDED_WAIT_NOTICE_DELAY_MS = 10000;
+
+export function formatElapsedTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return minutes > 0
+    ? `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s`
+    : `${remainingSeconds}s`;
+}
+
+export function getExportErrorMessage(payload: unknown, fallback = 'PDF generation failed. Please try again.') {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'message' in payload &&
+    typeof payload.message === 'string' &&
+    payload.message.trim()
+  ) {
+    return payload.message;
+  }
+
+  return fallback;
+}
+
+export function getLoadingNotice(elapsedSeconds: number) {
+  if (elapsedSeconds >= EXTENDED_WAIT_NOTICE_DELAY_MS / 1000) {
+    return 'Still working — please keep this page open while your PDF is prepared.';
+  }
+
+  if (elapsedSeconds >= LONG_CONVERSATION_NOTICE_DELAY_MS / 1000) {
+    return "This conversation is very long. We're processing it into a PDF, which may take a little longer.";
+  }
+
+  return null;
+}
 
 function isLikelyChatGptUrl(s: string) {
   try {
@@ -76,9 +105,17 @@ export default function HeroInputCard() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<ProgressStage>('idle');
+  const [exportStatus, setExportStatus] = useState<ExportStatus>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showLongNotice, setShowLongNotice] = useState(false);
+  const [showExtendedWaitNotice, setShowExtendedWaitNotice] = useState(false);
+  const [exportStats, setExportStats] = useState<ExportStats | null>(null);
+  const [kittenMessage, setKittenMessage] = useState(KITTEN_MESSAGES[0]);
+  const mountedRef = useRef(true);
+  const requestControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     // 1. Initialize anonymous visitor_id and session_id
     let anonymousVisitorId = localStorage.getItem('anon_visitor_id');
     if (!anonymousVisitorId) {
@@ -133,6 +170,11 @@ export default function HeroInputCard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(telemetryPayload)
     }).catch(err => console.error('Failed to log pageview telemetry:', err));
+
+    return () => {
+      mountedRef.current = false;
+      requestControllerRef.current?.abort();
+    };
   }, []);
 
   const pasteFromClipboard = async () => {
@@ -156,30 +198,61 @@ export default function HeroInputCard() {
 
     if (loading) return;
 
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
     setLoading(true);
-    setProgress('fetching');
+    setExportStatus('loading');
+    setElapsedSeconds(0);
+    setShowLongNotice(false);
+    setShowExtendedWaitNotice(false);
+    setExportStats(null);
+    setKittenMessage(KITTEN_MESSAGES[0]);
 
-    const stageTimers: Array<ReturnType<typeof setTimeout>> = [];
+    const startedAt = Date.now();
+    const elapsedTimer = setInterval(() => {
+      if (!mountedRef.current) return;
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      setElapsedSeconds(elapsed);
+      if (elapsed * 1000 >= LONG_CONVERSATION_NOTICE_DELAY_MS) setShowLongNotice(true);
+      if (elapsed * 1000 >= EXTENDED_WAIT_NOTICE_DELAY_MS) setShowExtendedWaitNotice(true);
+    }, 1000);
+    const messageTimer = setInterval(() => {
+      if (!mountedRef.current) return;
+      setKittenMessage((current) => {
+        const index = KITTEN_MESSAGES.indexOf(current);
+        return KITTEN_MESSAGES[(index + 1) % KITTEN_MESSAGES.length];
+      });
+    }, 4200);
 
     try {
-      const req = fetch('/api/generate-pdf', {
+      const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: trimmed })
+        body: JSON.stringify({ url: trimmed }),
+        signal: controller.signal
       });
 
-      stageTimers.push(setTimeout(() => setProgress('formatting'), 650));
-      stageTimers.push(setTimeout(() => setProgress('generating'), 1700));
-      stageTimers.push(setTimeout(() => setProgress('preparing'), 3400));
-
-      const res = await req;
       if (!res.ok) {
-        throw new Error('PDF generation failed. Please try again.');
+        let payload: unknown = null;
+        try {
+          payload = await res.json();
+        } catch {
+          // Use the generic fallback below for non-JSON responses.
+        }
+        throw new Error(getExportErrorMessage(payload));
       }
 
-      setProgress('preparing');
-
       const blob = await res.blob();
+      if (!mountedRef.current) return;
+      const statsHeader = res.headers.get('x-pdf-stats');
+      if (statsHeader) {
+        try {
+          const stats = JSON.parse(statsHeader) as ExportStats;
+          if (Number.isFinite(stats.messages)) setExportStats(stats);
+        } catch {
+          // Stats are optional metadata; the download remains valid without them.
+        }
+      }
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = parseContentDispositionFileName(res.headers.get('content-disposition')) || 'conversation.pdf';
@@ -188,22 +261,24 @@ export default function HeroInputCard() {
       link.remove();
       URL.revokeObjectURL(link.href);
 
-      setProgress('done');
-      setTimeout(() => setProgress('idle'), 1800);
+      setExportStatus('done');
+      setTimeout(() => {
+        if (mountedRef.current) setExportStatus('idle');
+      }, 1800);
 
-    } catch (err: any) {
-      setError('PDF generation failed. Please try again.');
-      setProgress('idle');
+    } catch (err: unknown) {
+      if (!mountedRef.current || (err instanceof DOMException && err.name === 'AbortError')) return;
+      setError(err instanceof Error && err.message ? err.message : 'PDF generation failed. Please try again.');
+      setExportStatus('idle');
+      setExportStats(null);
 
     } finally {
-      stageTimers.forEach(clearTimeout);
-      setLoading(false);
+      clearInterval(elapsedTimer);
+      clearInterval(messageTimer);
+      if (requestControllerRef.current === controller) requestControllerRef.current = null;
+      if (mountedRef.current) setLoading(false);
     }
   };
-
-  const progressIndex = stageOrder.indexOf(progress as Exclude<ProgressStage, 'idle' | 'done'>);
-  const progressPercent = progress === 'done' ? 100 : progressIndex >= 0 ? ((progressIndex + 1) / stageOrder.length) * 100 : 0;
-  const currentStage = progress !== 'idle' && progress !== 'done' ? stageMeta[progress] : null;
 
   return (
     <div className="hero-input-wrap">
@@ -256,14 +331,16 @@ export default function HeroInputCard() {
       {/* Helper text */}
       <div className="hero-helper-row">
         <span className="helper-text">Works with public ChatGPT shared links — no login required</span>
-        {loading && currentStage && (
-          <span className="hero-stage-label" aria-live="polite">{currentStage.label}</span>
+        {loading && (
+          <span className="hero-stage-label" aria-live="polite">
+            Exporting with care
+          </span>
         )}
       </div>
 
       {/* Status banners */}
       <div className="hero-banners">
-        {progress === 'done' && (
+        {exportStatus === 'done' && (
           <div className="status-banner status-success" role="status">
             <span className="status-icon" aria-hidden>✔</span>
             <span>Your PDF is ready — download started.</span>
@@ -276,7 +353,10 @@ export default function HeroInputCard() {
             <span style={{ flex: 1 }}>
               {error}{' '}
               <button
-                onClick={() => setError(null)}
+                onClick={() => {
+                  setError(null);
+                  void generate();
+                }}
                 className="banner-retry"
               >
                 Try again
@@ -287,19 +367,53 @@ export default function HeroInputCard() {
       </div>
 
       {/* Progress loader */}
-      {loading && currentStage && (
-        <div className="premium-loader" role="status" aria-live="polite">
-          <div className="premium-loader-title">{currentStage.label}</div>
-          <div className="premium-loader-track" aria-hidden>
-            <div className="premium-loader-fill" style={{ width: `${progressPercent}%` }} />
+      {loading && (
+        <div className="premium-loader" role="status" aria-live="polite" aria-atomic="true">
+          <div className="premium-loader-heading">
+            <div>
+              <div className="premium-loader-eyebrow">PDF KITTEN WORKSHOP</div>
+              <div className="premium-loader-title">{kittenMessage}</div>
+            </div>
+            <button type="button" className="premium-loader-cancel" onClick={() => requestControllerRef.current?.abort()}>
+              Cancel
+            </button>
           </div>
-          <div className="premium-loader-steps" aria-hidden>
-            {stageOrder.map((stage, idx) => {
-              const active = progressPercent >= ((idx + 1) / stageOrder.length) * 100;
-              return <span key={stage} className={`premium-dot ${active ? 'active' : ''}`} />;
-            })}
+          <div className="kitten-scene" aria-hidden="true">
+            <div className="kitten-cloud cloud-one" />
+            <div className="kitten-cloud cloud-two" />
+            <div className="kitten">
+              <div className="kitten-ear ear-left" />
+              <div className="kitten-ear ear-right" />
+              <div className="kitten-face"><i className="eye eye-left" /><i className="eye eye-right" /><i className="nose" /></div>
+              <div className="kitten-body"><span className="paw paw-left" /><span className="paw paw-right" /></div>
+              <div className="kitten-tail" />
+            </div>
+            <div className="tiny-laptop"><span>~ ~ ~</span></div>
           </div>
-          <div className="premium-loader-hint">{currentStage.hint}</div>
+          <div className="premium-loader-track" aria-hidden="true">
+            <div className="premium-loader-indicator" />
+          </div>
+          <div className="premium-loader-preservation" aria-label="Content preservation checklist">
+            <span><i aria-hidden>✓</i> Message order</span>
+            <span><i aria-hidden>✓</i> Formatting</span>
+            <span><i aria-hidden>✓</i> Equations and code</span>
+          </div>
+          <div className="premium-loader-hint">No fake percentages — we’ll let you know when your download is ready.</div>
+
+          {exportStats && (
+            <div className="premium-loader completed-stats" role="status">
+              <div className="premium-loader-eyebrow">PRESERVED IN YOUR PDF</div>
+              <div className="stats-grid">
+                <span><strong>{exportStats.messages}</strong> messages</span>
+                <span><strong>{exportStats.equations}</strong> equations</span>
+                <span><strong>{exportStats.codeBlocks}</strong> code blocks</span>
+                <span><strong>{exportStats.tables}</strong> tables</span>
+              </div>
+            </div>
+          )}
+          {showExtendedWaitNotice && (
+            <div className="premium-loader-hint">{getLoadingNotice(elapsedSeconds)}</div>
+          )}
         </div>
       )}
 
@@ -465,11 +579,103 @@ export default function HeroInputCard() {
         }
 
         .premium-loader-title {
-          text-align: center;
           font-size: 0.9rem;
           color: #0f172a;
           font-weight: 550;
           letter-spacing: 0.01em;
+        }
+
+        .premium-loader-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .premium-loader-eyebrow {
+          color: #2563eb;
+          font-size: 0.66rem;
+          font-weight: 750;
+          letter-spacing: 0.14em;
+        }
+
+        .premium-loader-subtitle {
+          margin-top: 6px;
+          color: #475569;
+          font-size: 0.78rem;
+          line-height: 1.5;
+        }
+
+        .kitten-scene {
+          position: relative;
+          height: 92px;
+          margin: 12px 0 4px;
+          overflow: hidden;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #e0f2fe, #f8fafc);
+        }
+
+        .kitten-cloud {
+          position: absolute;
+          width: 42px;
+          height: 12px;
+          border-radius: 999px;
+          background: rgba(255,255,255,.8);
+          animation: cloudDrift 8s linear infinite;
+        }
+        .cloud-one { top: 17px; left: 12%; }
+        .cloud-two { top: 34px; left: 68%; animation-delay: -4s; transform: scale(.7); }
+        .kitten {
+          position: absolute;
+          left: 50%;
+          bottom: 10px;
+          width: 72px;
+          height: 58px;
+          transform: translateX(-58%);
+          animation: kittenWork 1.8s ease-in-out infinite;
+        }
+        .kitten-face {
+          position: absolute;
+          z-index: 2;
+          top: 9px;
+          left: 17px;
+          width: 38px;
+          height: 31px;
+          border-radius: 48% 48% 45% 45%;
+          background: #f59e0b;
+          box-shadow: inset 0 -4px 0 rgba(180,83,9,.15);
+        }
+        .kitten-ear {
+          position: absolute;
+          z-index: 1;
+          top: 1px;
+          width: 20px;
+          height: 22px;
+          background: #d97706;
+          clip-path: polygon(50% 0, 100% 100%, 0 100%);
+        }
+        .ear-left { left: 14px; transform: rotate(-16deg); }
+        .ear-right { right: 12px; transform: rotate(16deg); }
+        .eye { position: absolute; top: 12px; width: 4px; height: 6px; border-radius: 50%; background: #1e293b; }
+        .eye-left { left: 10px; } .eye-right { right: 10px; }
+        .nose { position: absolute; left: 17px; top: 20px; width: 5px; height: 4px; border-radius: 50%; background: #be123c; }
+        .kitten-body { position: absolute; bottom: 0; left: 14px; width: 44px; height: 31px; border-radius: 50% 50% 35% 35%; background: #f59e0b; }
+        .paw { position: absolute; bottom: -3px; width: 15px; height: 9px; border-radius: 50%; background: #fbbf24; }
+        .paw-left { left: 5px; } .paw-right { right: 5px; }
+        .kitten-tail { position: absolute; right: 0; bottom: 7px; width: 26px; height: 30px; border: 5px solid #d97706; border-left: 0; border-bottom-color: transparent; border-radius: 0 24px 0 0; transform: rotate(20deg); }
+        .tiny-laptop { position: absolute; left: 50%; bottom: 6px; width: 29px; height: 19px; border: 3px solid #64748b; border-radius: 3px; background: #dbeafe; transform: translateX(14px); color: #2563eb; font-size: 7px; text-align: center; line-height: 16px; }
+        .tiny-laptop:after { content: ''; position: absolute; left: -6px; bottom: -6px; width: 41px; height: 4px; border-radius: 50%; background: #64748b; }
+        @keyframes kittenWork { 0%,100% { transform: translateX(-58%) translateY(0); } 50% { transform: translateX(-58%) translateY(-3px); } }
+        @keyframes cloudDrift { from { margin-left: -8px; } to { margin-left: 8px; } }
+
+        .premium-loader-cancel {
+          border: 1px solid #cbd5e1;
+          border-radius: 999px;
+          background: #fff;
+          color: #334155;
+          cursor: pointer;
+          font-size: 0.72rem;
+          padding: 5px 10px;
         }
 
         .premium-loader-track {
@@ -480,31 +686,55 @@ export default function HeroInputCard() {
           overflow: hidden;
         }
 
-        .premium-loader-fill {
+        .premium-loader-indicator {
           height: 100%;
-          border-radius: 9999px;
-          background: linear-gradient(90deg, #3b82f6, #0ea5e9);
-          transition: width 480ms cubic-bezier(0.2, 0.65, 0.2, 1);
+          width: 35%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, transparent, #3b82f6, #0ea5e9, transparent);
+          animation: indeterminateProgress 1.4s ease-in-out infinite;
         }
 
-        .premium-loader-steps {
-          margin-top: 12px;
+        .premium-loader-elapsed {
+          margin-top: 10px;
+          text-align: center;
+          font-size: 0.78rem;
+          color: rgba(71, 85, 105, 0.8);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .premium-loader-preservation {
           display: flex;
-          justify-content: center;
+          flex-wrap: wrap;
+          gap: 8px 14px;
+          margin-top: 13px;
+          color: #475569;
+          font-size: 0.73rem;
+        }
+
+        .premium-loader-preservation i {
+          color: #2563eb;
+          font-style: normal;
+          font-weight: 700;
+          margin-right: 4px;
+        }
+
+        .completed-stats {
+          animation: fadeSlideIn 260ms ease;
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 8px;
+          margin-top: 10px;
+          color: #475569;
+          font-size: 0.78rem;
         }
 
-        .premium-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 9999px;
-          background: rgba(100, 116, 139, 0.26);
-          transition: transform 280ms ease, background-color 280ms ease;
-        }
-
-        .premium-dot.active {
-          background: rgba(14, 116, 240, 0.9);
-          transform: scale(1.15);
+        .stats-grid strong {
+          color: #0f172a;
+          font-size: 1rem;
+          margin-right: 4px;
         }
 
         .premium-loader-hint {
@@ -523,6 +753,27 @@ export default function HeroInputCard() {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(4px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes indeterminateProgress {
+          0% { transform: translateX(-150%); }
+          100% { transform: translateX(290%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .btn-pulse,
+          .premium-loader-indicator,
+          .kitten,
+          .kitten-cloud {
+            animation: none;
+          }
+          .premium-loader-indicator {
+            width: 100%;
+            background: #3b82f6;
+          }
+          .completed-stats {
+            animation: none;
+          }
         }
 
         /* ── Desktop (641px+): side-by-side layout ── */

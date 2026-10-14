@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { siteUrl } from '../../lib/branding';
+import { permanentRedirect } from 'next/navigation';
 
 const pageUrl = `${siteUrl}/print-chatgpt-conversation`;
 
@@ -64,6 +65,7 @@ export const metadata: Metadata = {
 };
 
 export default function PrintChatGPTConversationPage() {
+  permanentRedirect('/blog/why-browser-printing-breaks-chatgpt-code-blocks-and-tables');
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',

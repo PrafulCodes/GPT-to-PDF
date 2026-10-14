@@ -5,7 +5,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'Do I need a Chrome extension?',
-    a: 'No. This tool converts public ChatGPT shared links server-side — no extension required.'
+    a: 'No. This tool converts public ChatGPT shared links server-side — no extension required. We do not store your conversations or generated PDFs.'
   },
   { q: 'Is this ChatGPT PDF converter free?', a: 'Yes — the basic converter is free and requires no signup.' },
   { q: 'Does it work on iPhone and Android?', a: 'Yes. The site is mobile-first and works in mobile browsers without installing an app.' },

@@ -4,10 +4,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { creatorName, creatorUrl, siteHost, siteUrl } from '../lib/branding';
 
 export default function Footer() {
-  const [count, setCount] = useState<number | null>(null);
+  const [stats, setStats] = useState<{ count: number; megabytes: number } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const counterRef = useRef<HTMLDivElement | null>(null);
-  const animatedCount = useAnimatedCount(count, isVisible);
+  const animatedCount = useAnimatedCount(stats?.count ?? null, isVisible);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,8 +17,8 @@ export default function Footer() {
         const res = await fetch('/api/stats', { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && typeof data?.pdfGeneratedCount === 'number') {
-          setCount(data.pdfGeneratedCount);
+        if (!cancelled && typeof data?.pdfGeneratedCount === 'number' && typeof data?.pdfGeneratedMegabytes === 'number') {
+          setStats({ count: data.pdfGeneratedCount, megabytes: data.pdfGeneratedMegabytes });
         }
       } catch {
         // Keep footer resilient if stats call fails.
@@ -49,7 +49,8 @@ export default function Footer() {
     return () => observer.disconnect();
   }, []);
 
-  const countText = count === null ? '...' : formatNumber(animatedCount);
+  const countText = stats === null ? '...' : formatNumber(animatedCount);
+  const megabytesText = stats === null ? '...' : `${formatMegabytes(stats.megabytes)} MB`;
 
   return (
     <footer role="contentinfo" className="site-footer">
@@ -69,8 +70,9 @@ export default function Footer() {
             <div className="footer-proof-value">
               <span className={`footer-proof-dot ${isVisible ? 'is-visible' : ''}`} aria-hidden />
               <span className="footer-proof-count">{countText}</span>
-              <span className="footer-proof-suffix">chat exports</span>
+              <span className="footer-proof-suffix">successful PDFs</span>
             </div>
+            <div className="footer-proof-bytes">{megabytesText} generated (decimal MB)</div>
           </div>
 
           <div className="footer-nav-groups">
@@ -80,6 +82,7 @@ export default function Footer() {
               <a href="/video/how-to-convert-chatgpt-to-pdf" className="link footer-link">Video guide</a>
               <a href="/#faq" className="link footer-link">FAQ</a>
               <a href="/about" className="link footer-link">About</a>
+              <a href="/blog" className="link footer-link">Guides</a>
               <a href="/contact" className="link footer-link">Contact</a>
             </nav>
             <nav className="footer-links footer-legal" aria-label="Legal links">
@@ -173,6 +176,12 @@ export default function Footer() {
           color: var(--color-text-secondary);
         }
 
+        .footer-proof-bytes {
+          margin-top: 7px;
+          color: var(--color-text-tertiary);
+          font-size: 12px;
+        }
+
         .footer-nav-groups {
           display: flex;
           flex-direction: column;
@@ -249,6 +258,10 @@ function varWeight(name: 'regular'|'medium') {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatMegabytes(value: number) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
 }
 
 function useAnimatedCount(target: number | null, shouldAnimate: boolean) {

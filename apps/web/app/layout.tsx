@@ -2,6 +2,7 @@ import './globals.css';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { siteUrl } from '../lib/branding';
+import CookieConsent from '../components/CookieConsent';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -99,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="min-h-screen bg-white">
           {children}
         </div>
+        <CookieConsent />
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import FAQ from '../components/FAQ';
 import { FAQ_ITEMS } from '../lib/seo';
 import Footer from '../components/Footer';
 import { siteUrl } from '../lib/branding';
+import ContentPackSection from '../components/ContentPackSection';
 
 export const metadata: Metadata = {
   title: 'ChatGPT Link to PDF Converter | GPTtoPDF',
@@ -358,6 +359,8 @@ export default function Page() {
         </section>
 
         <FAQ />
+
+        <ContentPackSection />
 
         <Footer />
 

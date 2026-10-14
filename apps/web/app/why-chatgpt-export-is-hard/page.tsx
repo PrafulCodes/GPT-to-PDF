@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { siteUrl } from '../../lib/branding';
+import { permanentRedirect } from 'next/navigation';
 
 const pageUrl = `${siteUrl}/why-chatgpt-export-is-hard`;
 
@@ -66,6 +67,7 @@ export const metadata: Metadata = {
 };
 
 export default function WhyChatGPTExportIsHardPage() {
+  permanentRedirect('/blog/why-browser-printing-breaks-chatgpt-code-blocks-and-tables');
   const breadcrumbLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
