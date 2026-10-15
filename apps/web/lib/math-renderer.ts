@@ -47,7 +47,10 @@ export function renderMath(source: string, displayMode: boolean): MathRenderResu
       html: katex.renderToString(source, {
         displayMode,
         throwOnError: true,
-        output: 'htmlAndMathml',
+        // The PDF renderer only needs the visual HTML tree. Omitting the
+        // duplicate MathML tree keeps equation-heavy exports within the
+        // serverless execution budget without changing their appearance.
+        output: 'html',
         strict: 'warn'
       }),
       engine: 'katex'

@@ -48,7 +48,7 @@ $$
   assert.match(html, /class="katex"/);
   assert.match(html, /class="katex-display"|mjx-container/);
   assert.doesNotMatch(html, /katex-error/);
-  assert.match(html, /π|alpha/);
+  assert.match(html, /α|β|γ/);
   assert.doesNotMatch(html, /<hr\b/i);
 });
 
