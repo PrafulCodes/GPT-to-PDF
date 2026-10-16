@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 import { validateChatGptShareUrl } from '../../../lib/validate-url';
-import { fetchChatPage } from '../../../lib/fetch-chat';
+import { CHAT_PAGE_TOO_LARGE_REASON, fetchChatPage } from '../../../lib/fetch-chat';
 import { parseChatHtml } from '../../../lib/parse-chat';
 import { createPdfDeadline, generatePdf } from '../../../lib/generate-pdf';
 import { incrementPdfGenerationStats } from '../../../lib/pdf-stats';
@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
     const fetched = await fetchChatPage(valid.url, Math.min(12000, deadline.remainingMs()));
 
     if ('reason' in fetched) {
+      const tooLarge = fetched.status === 413;
       logSecurityEvent('error', 'PDF_GENERATION_FAILED', {
         route: '/api/generate-pdf',
         stage: 'fetch_chat_page',
@@ -170,7 +171,11 @@ export async function POST(req: NextRequest) {
         ip
       });
       await recordExportEvent(false, fetched.reason || 'Fetch Failed', 'fetch_chat_page', fetched.status || 502);
-      return jsonError(502, { error: true, message: 'PDF generation failed. Please try again.' });
+      return jsonError(tooLarge ? 413 : 502, {
+        error: true,
+        code: tooLarge ? 'CHAT_PAGE_TOO_LARGE' : 'PDF_GENERATION_FAILED',
+        message: tooLarge ? CHAT_PAGE_TOO_LARGE_REASON : 'PDF generation failed. Please try again.'
+      });
     }
 
     if (deadline.remainingMs() <= 0) {

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test lib/generate-pdf.test.ts"
+    "test": "tsx --test lib/*.test.ts"
   },
   "dependencies": {
     "@repo/analytics": "*",

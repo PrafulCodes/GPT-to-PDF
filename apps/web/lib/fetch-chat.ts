@@ -2,7 +2,8 @@ import { isAllowedChatHost, parseAndValidateChatUrl } from './validate-url';
 import { logSecurityEvent } from './security';
 
 const MAX_REDIRECTS = 3;
-const MAX_HTML_BYTES = 5 * 1024 * 1024;
+export const MAX_HTML_BYTES = 8 * 1024 * 1024;
+export const CHAT_PAGE_TOO_LARGE_REASON = 'Fetched page is too large to export. Try a shorter conversation.';
 
 function isRedirect(status: number) {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
@@ -16,7 +17,21 @@ function resolveRedirectUrl(location: string, from: URL) {
   }
 }
 
-async function readHtmlWithCap(response: Response, signal: AbortSignal) {
+export async function readHtmlWithCap(response: Response, signal: AbortSignal) {
+  const declaredLengthHeader = response.headers.get('content-length');
+  const declaredLength = declaredLengthHeader ? Number(declaredLengthHeader) : null;
+
+  if (declaredLength !== null && Number.isFinite(declaredLength) && declaredLength > MAX_HTML_BYTES) {
+    await response.body?.cancel('body too large').catch(() => {});
+    logSecurityEvent('warn', 'FETCH_BODY_LIMIT_EXCEEDED', {
+      maxBytes: MAX_HTML_BYTES,
+      declaredBytes: declaredLength,
+      receivedBytes: 0,
+      source: 'content-length'
+    });
+    return { ok: false as const, status: 413, reason: CHAT_PAGE_TOO_LARGE_REASON };
+  }
+
   if (!response.body) {
     return { ok: false as const, status: 502, reason: 'Empty response body' };
   }
@@ -36,14 +51,20 @@ async function readHtmlWithCap(response: Response, signal: AbortSignal) {
       if (done) break;
 
       const chunk = value || new Uint8Array(0);
-      total += chunk.byteLength;
+      const nextTotal = total + chunk.byteLength;
 
-      if (total > MAX_HTML_BYTES) {
+      if (nextTotal > MAX_HTML_BYTES) {
         await reader.cancel('body too large').catch(() => {});
-        logSecurityEvent('warn', 'FETCH_BODY_LIMIT_EXCEEDED', { maxBytes: MAX_HTML_BYTES });
-        return { ok: false as const, status: 413, reason: 'Fetched page is too large' };
+        logSecurityEvent('warn', 'FETCH_BODY_LIMIT_EXCEEDED', {
+          maxBytes: MAX_HTML_BYTES,
+          declaredBytes: declaredLength,
+          receivedBytes: nextTotal,
+          source: 'stream'
+        });
+        return { ok: false as const, status: 413, reason: CHAT_PAGE_TOO_LARGE_REASON };
       }
 
+      total = nextTotal;
       chunks.push(chunk);
     }
   } finally {
