@@ -164,14 +164,6 @@ curl -X POST http://localhost:3000/api/generate-pdf \
 
 ---
 
-## Deployment (Vercel)
-
-1. Push this repository to GitHub.
-2. On Vercel, choose "Import Project" and select this repository.
-3. Vercel will detect the Next.js app; set any environment variables if needed.
-4. Deploy — Vercel will build and host the frontend and API routes.
-
-Notes: The project uses `puppeteer-core` with `@sparticuz/chromium` to run headless Chrome in Vercel serverless functions. No additional custom server is required for typical deployments.
 
 ---
 
