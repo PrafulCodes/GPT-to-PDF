@@ -1,21 +1,42 @@
-MIT License
+# Praful Attribution License (PAL)
+**Copyright (c) 2026 Praful Mohite**
 
-Copyright (c) 2026 Praful Mohite
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use, copy, modify, merge, publish, distribute, and/or sell copies of the Software, including for commercial purposes, subject to the following conditions:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### 1. Mandatory Attribution
+Any person or organization using, modifying, distributing, or commercially exploiting this Software or a derivative work must provide clear and appropriate credit to the original author, Praful Mohite.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+### 2. Source Reference
+Attribution must include:
 
+- **Original Author:** Praful Mohite
+- **Original Source:** Link to the original GitHub repository.
+- **Credit:** A statement such as "Originally developed by Praful Mohite" or "Based on the original work by Praful Mohite."
+
+### 3. Attribution in Modified and Commercial Works
+If this Software is modified, incorporated into another project, or used as part of a commercial product or service, the original attribution must be retained.
+
+Attribution must be reasonably visible in at least one appropriate location, such as:
+
+- Project README or documentation.
+- About, Credits, or Acknowledgements section.
+- Website or product credits page.
+
+The original copyright and license notices must also be retained in redistributed copies or substantial portions of the Software.
+
+### 4. Commercial Freedom
+Commercial use is explicitly permitted. Anyone may build businesses, SaaS products, applications, or other commercial services using this Software and charge customers for them. No royalties or payments to the original author are required.
+
+### 5. No Endorsement
+Attribution does not imply that the original author endorses, sponsors, or is affiliated with any modified project or commercial product.
+
+### 6. Warranty Disclaimer
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED. IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+---
+
+**Original Author:** Praful Mohite
+**License:** Praful Attribution License (PAL)
+**Copyright Year:** 2026

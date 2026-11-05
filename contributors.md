@@ -41,4 +41,4 @@ fixes, documentation, accessibility, performance, and new export features.
 ## License
 
 By contributing, you agree that your contribution is provided under the
-project's [MIT License](./LICENSE).
+project's [Praful Attribution License (PAL)](./LICENSE).

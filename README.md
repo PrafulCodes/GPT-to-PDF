@@ -1,10 +1,16 @@
 # GPT to PDF
 
+[![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen?style=for-the-badge)](./LICENSE)
+
 Convert public ChatGPT shared links into polished, downloadable PDFs.
 
 A lightweight Next.js 15 (App Router) webapp + API for fetching public ChatGPT conversations, parsing the conversation hydration data, and producing premium-formatted PDF exports.
 
-Badges: ![Vercel](https://img.shields.io/badge/deploy-vercel-000000?style=flat&logo=vercel) ![License](https://img.shields.io/badge/license-MIT-blue)
+**GPT to PDF is open source.** Anyone can inspect the code, use the project,
+report issues, and contribute improvements under the [Praful Attribution
+License (PAL)](./LICENSE).
+
+![Vercel](https://img.shields.io/badge/deploy-vercel-000000?style=flat&logo=vercel) ![License](https://img.shields.io/badge/license-PAL-blue)
 
 ---
 
@@ -204,7 +210,8 @@ Please read both documents before opening an issue or pull request.
 
 ## License
 
-This project is provided under the MIT License. See the `LICENSE` file for details.
+This project is provided under the Praful Attribution License (PAL). See the
+[`LICENSE`](./LICENSE) file for the complete terms.
 
 ---
 
