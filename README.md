@@ -132,16 +132,22 @@ No secret keys are required for the core functionality that converts public shar
 ## Project structure
 
 ```
-apps/web/            # Public Next.js app, routes, components, and API
+apps/web/            # Public Next.js app
+  app/               # Pages, layouts, metadata, and API routes
+  components/        # Reusable UI components
+  lib/               # PDF, parsing, rate-limiting, and request helpers
+  public/             # Static assets
+  styles/             # Global and page styles
 packages/analytics/  # Analytics parsing and test utilities
 packages/db/         # Database and Prisma integration
 packages/shared/     # Shared TypeScript utilities
-docs/                # Project documentation and content assets
+scripts/              # Repository utility scripts
+docs/                 # Project documentation and content assets
 ```
 
-- `apps/web/app/` — React pages and API routes
-- `apps/web/components/` — UI building blocks (Hero, Footer, Input card)
-- `apps/web/lib/` — core logic for fetching, parsing, and PDF generation
+The repository is an npm workspace managed with Turborepo. The public
+application lives in `apps/web/`; the `packages/` directories contain code
+shared by the application and database tooling.
 
 ---
 
@@ -187,8 +193,12 @@ curl -X POST http://localhost:3000/api/generate-pdf \
 
 ## Contributing
 
-Contributions are welcome. Read the [contributor guide](./contributor.md) and
-[contributor development guide](./contributorsguide.md) before opening an issue or pull request.
+Contributions are welcome. Start with these contributor resources:
+
+- [Contributors](./contributors.md) — contribution standards and pull request checklist
+- [Contributor development guide](./contributorsguide.md) — setup, testing, branches, commits, and pull requests
+
+Please read both documents before opening an issue or pull request.
 
 ---
 
