@@ -42,8 +42,9 @@ export default function ContentPackSection() {
           <h3 className="text-lg font-bold text-slate-900">How GPTtoPDF Approaches the Problem</h3>
           <p className="mt-2">
             GPTtoPDF starts from a public ChatGPT shared link, formats the conversation as a document designed for paper, and returns a PDF.
-            Code stays monospaced, tables stay inside the margins, equations stay legible and headings keep their hierarchy. Conversation
-            content is held in memory just long enough to create the file and is not stored.
+            The renderer applies dedicated rules for code, tables, equations, headings, images, and page breaks. Conversation content is
+            processed for the request and is not intentionally saved to the application database or file storage; hosting and analytics
+            systems can still retain operational metadata.
           </p>
         </article>
       </div>
@@ -54,15 +55,15 @@ export default function ContentPackSection() {
       <p className="seo-body">
         Go deeper:{' '}
         <Link href="/blog/why-browser-printing-breaks-chatgpt-code-blocks-and-tables" className="link text-blue-700 hover:underline">
-          Why Native Browser Printing Breaks ChatGPT Code Blocks and Tables
+          Why Browser Printing Breaks ChatGPT Code Blocks and Tables
         </Link>
         {' · '}
         <Link href="/blog/archiving-ai-research-and-prompt-engineering-outputs-for-teams" className="link text-blue-700 hover:underline">
-          The Ultimate Guide to Archiving AI Research and Prompt Engineering Outputs for Teams
+          Archiving AI Research and Prompt Engineering Outputs for Teams
         </Link>
         {' · '}
         <Link href="/blog/legal-compliance-teams-document-llm-interactions-secure-pdfs" className="link text-blue-700 hover:underline">
-          How Legal and Compliance Teams Document LLM Interactions Using Secure PDFs
+          Documenting LLM Interactions with PDFs: A Practical Workflow
         </Link>
       </p>
     </section>

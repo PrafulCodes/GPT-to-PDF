@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
 
             <div className="space-y-8 text-slate-600 leading-relaxed md:text-lg">
               <p>
-                At GPTtoPDF, we respect your privacy. This Privacy Policy explains how we collect, use, and handle information when you use our website and services to convert ChatGPT shared links to PDFs.
+                This Privacy Policy explains how GPTtoPDF handles information when you use the website and its public ChatGPT shared-link-to-PDF service.
               </p>
 
               <div>
@@ -75,17 +75,17 @@ export default function PrivacyPolicyPage() {
                   We process only the information necessary to generate PDFs and operate the service. When you provide a public ChatGPT shared link, our servers fetch the content of that specific link solely to format and generate your PDF document. 
                 </p>
                 <p className="mt-4">
-                  We do not store your conversations or generated PDFs on our servers after the generation process is complete. The content is held in memory just long enough to create the file and return it to your browser.
+                  The submitted URL and fetched conversation are processed to create the PDF. The application does not intentionally save conversation contents or generated PDF files in its database or file storage after the request. Hosting, browser, proxy, and security logs may still contain request metadata according to the provider's retention practices.
                 </p>
               </div>
 
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">2. Telemetry and Analytics</h2>
                 <p>
-                  To understand how our tool is used and to improve its performance, we collect anonymous usage data (telemetry). This includes general information such as browser type, operating system, device type, referring pages, and performance metrics (like how long it takes to generate a PDF). 
+                  To understand how the tool is used and improve its performance, the site sends pseudonymous telemetry. This can include a random visitor and session identifier stored in browser local/session storage, page paths, referrers, campaign parameters, browser and operating-system details, device type, screen and viewport size, language, timezone, approximate Vercel-provided geography, and performance metrics such as PDF generation time.
                 </p>
                 <p className="mt-4">
-                  This telemetry data does not include personally identifiable information or the contents of your ChatGPT conversations.
+                  Telemetry does not intentionally include conversation contents. It can be associated with a pseudonymous visitor or session record, and normal hosting and security logs may include an IP address, user agent, request path, timestamp, and response status.
                 </p>
               </div>
 
@@ -95,17 +95,14 @@ export default function PrivacyPolicyPage() {
                     GPTtoPDF is built on modern web infrastructure, utilizing platforms such as Vercel for hosting and Upstash Redis for essential technical functions like rate limiting.
                   </p>
                   <p className="mt-4">
-                    These services may process standard server logs (such as IP addresses and request timestamps) to ensure the security, stability, and reliability of our application. We only use third-party services that are essential to the operation of GPTtoPDF.
-                  </p>
-                  <p className="mt-4">
-                    We may display third-party advertising on the site, such as Google AdSense. These advertising providers may set cookies or collect information about your device and browsing activity for ad serving and measurement. You can learn about Google’s advertising practices and opt-out options at <a href="https://adssettings.google.com" className="text-blue-700 hover:underline">Google Ad Settings</a>.
+                    Vercel provides hosting and may process standard request logs. Upstash Redis is used for production rate limiting when configured. The application uses a database for operational analytics and export statistics. These providers may process standard technical metadata, such as IP addresses, request timestamps, user-agent information, and service performance data, to operate and secure the service. Their own privacy policies and retention practices also apply.
                   </p>
                 </div>
 
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">4. Cookies</h2>
                 <p>
-                  We do not use tracking cookies for advertising purposes. We may use minimal technical cookies or local storage only when necessary to provide core site functionality.
+                  GPTtoPDF does not currently use advertising cookies or advertising scripts. The browser may use local storage and session storage for a pseudonymous analytics visitor/session identifier and cookie-consent preference. You can clear these values through your browser settings; clearing them does not delete server-side analytics records.
                 </p>
               </div>
 

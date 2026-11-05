@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { bytesToMegabytes, getPdfGenerationStats } from '../../../lib/pdf-stats';
 import { enforceStatsRateLimit } from '../../../lib/abuse-protection';
 import { getClientIp, logSecurityEvent } from '../../../lib/security';
+import { withTimeout } from '../../../lib/with-timeout';
 
 export const runtime = 'nodejs';
 
 const STATS_CACHE_CONTROL = 'no-store';
+const STATS_TIMEOUT_MS = 3000;
 
 export async function GET(req: Request) {
   const ip = getClientIp(req);
@@ -34,7 +36,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const stats = await getPdfGenerationStats();
+    const stats = await withTimeout(getPdfGenerationStats(), STATS_TIMEOUT_MS);
     if (!stats) {
       return NextResponse.json(
         { error: 'Statistics temporarily unavailable' },

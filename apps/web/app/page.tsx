@@ -98,18 +98,18 @@ const comparisonRows = [
 const howCards = [
   {
     step: '01',
-    title: 'Copy ChatGPT conversation',
-    body: 'Copy the ChatGPT conversation or shared link.'
+    title: 'Create a public share link',
+    body: 'In ChatGPT, open the conversation menu, choose Share, and copy the public link.'
   },
   {
     step: '02',
     title: 'Paste into GPTtoPDF',
-    body: 'Paste it into our ChatGPT Link to PDF Converter and click Generate.'
+    body: 'Paste the HTTPS share link into the converter and click Generate PDF.'
   },
   {
     step: '03',
-    title: 'Download formatted PDF',
-    body: 'Download a beautifully formatted PDF with code, equations, and tables preserved.'
+    title: 'Download the PDF',
+    body: 'Download the generated PDF. Headings, lists, code, tables, and supported math are formatted for reading.'
   }
 ];
 
@@ -137,10 +137,10 @@ const personas = [
 ];
 
 const privacyChecks = [
-  'No login',
-  'No extension',
-  'No unnecessary permissions',
-  "We don't store chats"
+  'Public share links only',
+  'No ChatGPT login',
+  'No browser extension',
+  'No persistent chat storage'
 ];
 
 export default function Page() {
@@ -200,9 +200,9 @@ export default function Page() {
               <h1 className="hero-headline">Convert ChatGPT Links & Conversations to PDF</h1>
 
               <p className="hero-subtext">
-                GPTtoPDF is a free ChatGPT Link to PDF Converter. Paste a shared link 
-                or conversation and instantly get a clean PDF with code blocks, 
-                equations, and tables preserved. No login or extension required.
+                GPTtoPDF converts a public ChatGPT share link into a downloadable PDF.
+                Paste an HTTPS link and get a readable export with headings, code blocks,
+                equations, and tables formatted where supported. No login or extension required.
               </p>
             </div>
 
@@ -296,8 +296,34 @@ export default function Page() {
           </div>
 
           <p className="how-note">
-            Use this flow to save, archive, or share AI conversations — whether you want to convert ChatGPT to PDF, export ChatGPT chat, or save chatgpt conversation as pdf for offline review.
+            GPTtoPDF accepts public HTTPS share links from supported ChatGPT domains. It does not accept private conversations, account logins, uploaded files, or arbitrary web pages.
           </p>
+        </section>
+
+        <section id="limitations" className="site-container home-section section-wide">
+          <div className="section-intro">
+            <p className="section-kicker">Before you export</p>
+            <h2 className="section-heading">What to expect from a conversion</h2>
+            <p className="seo-body">
+              The service fetches the public page behind your link, parses the conversation, and renders a PDF in a server-side browser.
+              Long or unusually complex conversations can take longer or exceed the service&apos;s execution and response-size limits.
+            </p>
+          </div>
+
+          <div className="persona-grid">
+            <article className="persona-card card">
+              <h3 className="persona-title">Supported input</h3>
+              <p className="persona-body">Use an HTTPS public share URL from ChatGPT or another explicitly supported ChatGPT share domain. Private links and sign-in pages cannot be exported.</p>
+            </article>
+            <article className="persona-card card">
+              <h3 className="persona-title">Output limitations</h3>
+              <p className="persona-body">The renderer preserves common headings, lists, code, tables, images, and math where the source page exposes them. Complex or unsupported browser features may not reproduce exactly.</p>
+            </article>
+            <article className="persona-card card">
+              <h3 className="persona-title">If an export fails</h3>
+              <p className="persona-body">Check that the link is public and copied completely. For a very long conversation, try a shorter shared link. If the problem continues, contact support with the error and link domain, not private conversation content.</p>
+            </article>
+          </div>
         </section>
 
         <section id="authority" className="site-container home-section section-wide">
@@ -347,13 +373,8 @@ export default function Page() {
             <p className="section-kicker">Related pages</p>
             <h2 className="section-heading">ChatGPT export pages</h2>
             <p className="seo-body">
-              Explore our guides to learn more about <Link href="/save-chatgpt-conversation-as-pdf" className="link">saving your conversations securely</Link>,{' '}
-              <Link href="/export-chatgpt-chat" className="link">exporting chats for offline use</Link>, or converting <Link href="/chatgpt-shared-link-to-pdf" className="link">shared links directly</Link>{' '}
-              <Link href="/chatgpt-to-pdf-no-extension" className="link">without installing browser extensions</Link>.
-              {' '}
-              If you're wondering why native options often break, read our technical breakdown on <Link href="/why-chatgpt-export-is-hard" className="link">why exporting is hard</Link>.
-              {' '}
-              You can also learn the best methods to <Link href="/print-chatgpt-conversation" className="link">print threads</Link>, build a <Link href="/chatgpt-conversation-archive" className="link">personal archive</Link>, or use a dedicated <Link href="/chatgpt-export-tool" className="link">export tool</Link> in our complete guide on <Link href="/how-to-save-chatgpt-conversations" className="link">how to save AI discussions</Link>.
+              Read the <Link href="/how-to-use" className="link">step-by-step usage guide</Link> for supported links, common errors, and troubleshooting.
+              You can also convert a <Link href="/chatgpt-shared-link-to-pdf" className="link">ChatGPT shared link</Link>, watch the <Link href="/video/how-to-convert-chatgpt-to-pdf" className="link">video guide</Link>, or browse our <Link href="/blog" className="link">practical guides</Link>.
             </p>
           </div>
         </section>

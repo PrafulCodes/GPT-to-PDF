@@ -79,6 +79,7 @@ export default function Footer() {
             <nav className="footer-links" aria-label="Main links">
               <a href="/" className="link footer-link">Home</a>
               <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
+              <a href="/how-to-use" className="link footer-link">How to use</a>
               <a href="/video/how-to-convert-chatgpt-to-pdf" className="link footer-link">Video guide</a>
               <a href="/#faq" className="link footer-link">FAQ</a>
               <a href="/about" className="link footer-link">About</a>

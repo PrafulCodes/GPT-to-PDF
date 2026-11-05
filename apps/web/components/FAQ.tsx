@@ -21,6 +21,7 @@ export default function FAQ() {
         {FAQ_ITEMS.map((f, i) => (
           <div key={f.q} className="faq-item">
             <button
+              id={`faq-${i}`}
               onClick={() => toggle(i)}
               aria-expanded={open === i}
               aria-controls={`faq-panel-${i}`}

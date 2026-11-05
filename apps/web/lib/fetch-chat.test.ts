@@ -83,9 +83,14 @@ test('returns upstream fetch failures without disguising them as successful expo
     throw new Error('upstream unavailable');
   };
 
-  const result = await fetchChatPage(sharedUrl);
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
 
-  assert.deepEqual(result, { ok: false, status: 0, reason: 'upstream unavailable' });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.category, 'NETWORK_ERROR');
+    assert.equal(result.attempt, 3);
+    assert.equal(result.retriesExhausted, true);
+  }
 });
 
 test('applies the bounded reader to a fetched shared page', async () => {
@@ -96,5 +101,206 @@ test('applies the bounded reader to a fetched shared page', async () => {
 
   const result = await fetchChatPage(sharedUrl);
 
-  assert.deepEqual(result, { ok: true, html: '<html>ok</html>' });
+  assert.deepEqual(result, {
+    ok: true,
+    html: '<html>ok</html>',
+    status: 200,
+    contentType: null,
+    finalUrl: sharedUrl,
+    bytes: 15,
+    attempts: 1
+  });
+});
+
+test('retries HTTP 503 and succeeds', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls === 1 ? new Response(null, { status: 503 }) : responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {}, random: () => 0 });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('retries HTTP 502 and succeeds', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls === 1 ? new Response(null, { status: 502 }) : responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {}, random: () => 0 });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('retries HTTP 429 using a bounded Retry-After delay', async () => {
+  let calls = 0;
+  const delays: number[] = [];
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls === 1
+      ? new Response(null, { status: 429, headers: { 'retry-after': '1' } })
+      : responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 2000, {
+    sleep: async (delay) => { delays.push(delay); },
+    random: () => 0
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(delays, [1000]);
+  assert.equal(calls, 2);
+});
+
+test('exhausts retries for repeated transient responses', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(null, { status: 503 });
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {}, random: () => 0 });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.category, 'UPSTREAM_UNAVAILABLE');
+    assert.equal(result.attempt, 3);
+    assert.equal(result.retriesExhausted, true);
+  }
+  assert.equal(calls, 3);
+});
+
+test('does not retry permanent access and not-found failures', async () => {
+  for (const status of [403, 404]) {
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response(null, { status });
+    };
+
+    const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.category, status === 403 ? 'ACCESS_DENIED' : 'RESOURCE_NOT_FOUND');
+    assert.equal(calls, 1);
+  }
+});
+
+test('retries a network failure and succeeds', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) throw new Error('ECONNRESET');
+    return responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {}, random: () => 0 });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('retries an aborted attempt and succeeds before the deadline', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) throw Object.assign(new Error('timed out'), { name: 'AbortError' });
+    return responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {}, random: () => 0 });
+
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('does not start a retry after the overall deadline', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(null, { status: 503 });
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1, { sleep: async () => {} });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.category, 'UPSTREAM_TIMEOUT');
+  assert.equal(calls, 1);
+});
+
+test('stops immediately when the caller has cancelled the request', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { signal: controller.signal, sleep: async () => {} });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, 'Fetch cancelled');
+  assert.equal(calls, 0);
+});
+
+test('follows safe redirects', async () => {
+  const requested: string[] = [];
+  globalThis.fetch = async (input) => {
+    requested.push(String(input));
+    return requested.length === 1
+      ? new Response(null, { status: 302, headers: { location: 'https://chatgpt.com/share/redirected' } })
+      : responseWithBody(new TextEncoder().encode('<html>ok</html>'));
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(requested, [sharedUrl, 'https://chatgpt.com/share/redirected']);
+});
+
+test('rejects unsafe redirects without retrying', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/admin' } });
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.category, 'REDIRECT_ERROR');
+  assert.equal(calls, 1);
+});
+
+test('stops redirect loops at the redirect limit', async () => {
+  let calls = 0;
+  globalThis.fetch = async (input) => {
+    calls += 1;
+    return new Response(null, {
+      status: 302,
+      headers: { location: String(input) }
+    });
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.category, 'REDIRECT_ERROR');
+  assert.equal(calls, 1);
+});
+
+test('classifies empty successful responses as invalid responses', async () => {
+  globalThis.fetch = async () => responseWithBody(new TextEncoder().encode('   '));
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.category, 'INVALID_RESPONSE');
 });

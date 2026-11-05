@@ -8,7 +8,7 @@ import { siteUrl } from '../../lib/branding';
 export const metadata: Metadata = {
   title: 'Convert ChatGPT Shared Link to PDF Free',
   description:
-    'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
+    'Convert public ChatGPT shared links into readable PDFs. Preserve supported headings, code blocks, equations, and tables without a login or extension.',
   keywords: [
     'chatgpt shared link to pdf',
     'convert chatgpt shared link',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Convert ChatGPT Shared Link to PDF Free',
     description:
-      'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
+      'Convert public ChatGPT shared links into readable PDFs with supported formatting. No login or browser extension required.',
     url: `${siteUrl}/chatgpt-shared-link-to-pdf`,
     type: 'website',
     images: [
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Convert ChatGPT Shared Link to PDF Free',
     description:
-      'Convert ChatGPT shared links into clean PDFs instantly. Preserve formatting, code blocks, equations, and tables. Free, no login, works on mobile.',
+      'Convert public ChatGPT shared links into readable PDFs with supported formatting. No login or browser extension required.',
     images: [`${siteUrl}/og-image.png`]
   }
 };
@@ -55,15 +55,15 @@ const faqItems = [
   },
   {
     q: 'What happens after I paste my shared link?',
-    a: 'Our tool fetches the public conversation, formats it beautifully, and generates a PDF that downloads instantly to your device.'
+    a: 'The service fetches the public page, formats supported content, and returns a PDF when processing finishes. Very long or complex conversations may take longer or exceed service limits.'
   },
   {
     q: 'Is my ChatGPT conversation data stored anywhere?',
-    a: 'No. We fetch the page to generate the PDF and do not store your conversations or generated PDFs.'
+    a: 'The application does not intentionally save conversation contents or generated PDF files in its database or file storage. Hosting and analytics systems may still process operational metadata.'
   },
   {
     q: 'Why is URL-based conversion better than using a Chrome extension?',
-    a: 'With a shared link, you need no extension, no browser permissions, no account. It works on any device — desktop, mobile, even without Chrome.'
+    a: 'With a public share link, you need no extension or ChatGPT login. The workflow works in modern desktop and mobile browsers, subject to the public link being reachable.'
   }
 ];
 
@@ -125,9 +125,9 @@ export default function ChatGPTSharedLinkPage() {
         <section id="hero" className="px-4">
           <div className="max-w-3xl mx-auto">
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl font-extrabold">Convert ChatGPT Shared Links to PDF Instantly</h1>
+              <h1 className="text-3xl sm:text-4xl font-extrabold">Convert a ChatGPT Shared Link to PDF</h1>
               <p className="text-slate-600 mt-4 text-lg">
-                Convert any ChatGPT shared conversation link to a clean, formatted PDF in seconds. No extension, no account, no friction.
+                Convert a public HTTPS ChatGPT share link into a readable PDF. No extension or GPTtoPDF account is required, but the conversation must be publicly accessible.
               </p>
             </div>
 
@@ -142,12 +142,12 @@ export default function ChatGPTSharedLinkPage() {
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold">What is a ChatGPT Shared Link and Why Convert to PDF?</h2>
             <p className="text-slate-600 mt-4">
-              A ChatGPT shared link is a public URL you can generate from any conversation. Share it with teammates, clients, or archivists without giving
+              A ChatGPT shared link is a public URL you can generate from a conversation. Share it with teammates, clients, or archivists without giving
               access to your full ChatGPT account. But a link is ephemeral — shared links can be deleted, and viewing them requires a browser. A PDF is
-              permanent, printable, and shareable with anyone, on any device.
+              portable, printable, and easier to keep alongside project files.
             </p>
             <p className="text-slate-600 mt-3">
-              That's where we come in. Paste the shared link, download a professionally formatted PDF in one click, and you're done.
+              Paste the shared link, wait for the server-side conversion to finish, and inspect the PDF before archiving or sharing it.
             </p>
           </div>
         </section>
@@ -180,8 +180,8 @@ export default function ChatGPTSharedLinkPage() {
               <div className="border-l-4 border-blue-500 pl-6 py-2">
                 <h3 className="font-semibold text-lg">Step 3: Download Your PDF</h3>
                 <p className="text-slate-600 mt-2">
-                  The PDF downloads instantly to your device. It preserves all formatting — headings, code blocks, lists, images — so it reads just like
-                  the original conversation. Open it in Preview, Acrobat, or print it out.
+                  When processing finishes, your browser receives the PDF. Common headings, code blocks, lists, images, tables, and supported math are
+                  formatted where the shared page exposes them; complex layouts may not match the source exactly.
                 </p>
               </div>
             </div>
@@ -211,7 +211,7 @@ export default function ChatGPTSharedLinkPage() {
               <div className="border border-slate-200 rounded-lg p-5 hover:border-blue-300 transition">
                 <h3 className="font-semibold text-blue-700">Legal & Compliance</h3>
                 <p className="text-slate-600 mt-2">
-                  Archive ChatGPT conversations as timestamped PDFs for documentation, audit trails, and legal records.
+                  Archive reviewed ChatGPT conversations as readable PDFs for documentation. A PDF is not by itself a verified audit trail or legal record.
                 </p>
               </div>
 
@@ -276,7 +276,7 @@ export default function ChatGPTSharedLinkPage() {
                 <div>
                   <h3 className="font-semibold">Always Available</h3>
                   <p className="text-slate-600 text-sm">
-                    No browser updates that break extensions. No maintenance burden. Just works, every time.
+                    The service is available through a browser, but it still depends on the public link being reachable and on normal service limits.tes that break extensions. No maintenance burden. Just works, every time.
                   </p>
                 </div>
               </div>

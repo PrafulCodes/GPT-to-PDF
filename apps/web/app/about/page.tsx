@@ -10,7 +10,7 @@ const pageUrl = `${siteUrl}/about`;
 export const metadata: Metadata = {
   title: 'About',
   description:
-    'Learn about GPTtoPDF, a free web tool to convert ChatGPT links to PDF while preserving formatting. No login required and mobile friendly.',
+    'Learn how GPTtoPDF converts public ChatGPT share links into readable PDFs, what it supports, and how it handles submitted content.',
   robots: { index: true, follow: true },
   alternates: {
     canonical: pageUrl
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'About | GPTtoPDF',
     description:
-      'Learn about GPTtoPDF, a free web tool to convert ChatGPT links to PDF while preserving formatting. No login required and mobile friendly.',
+      'Learn how GPTtoPDF converts public ChatGPT share links into readable PDFs and what the service supports.',
     url: pageUrl,
     type: 'website'
   }
@@ -63,7 +63,7 @@ export default function AboutPage() {
 
             <div className="space-y-6 text-slate-600 leading-relaxed md:text-lg">
               <p>
-                <strong>GPTtoPDF</strong> is a free web tool that turns a public ChatGPT shared link into a clean, formatted PDF with code blocks, LaTeX math and tables intact. It was created by Praful Mohite to solve one specific problem well: saving an AI conversation without losing the structure that made it useful.
+                <strong>GPTtoPDF</strong> is a free web tool that turns a public ChatGPT shared link into a readable PDF. It was created by Praful Mohite to solve one specific problem: saving an AI conversation without losing the structure that made it useful.
               </p>
               
               <p>
@@ -73,11 +73,11 @@ export default function AboutPage() {
               <h2 className="text-2xl font-bold text-slate-900 mt-10 mb-4">What GPTtoPDF Does</h2>
               
               <p>
-                You create a share link in ChatGPT, paste it into GPTtoPDF and download the PDF. The tool works only with public shared links. It never asks for your ChatGPT login and cannot see private conversations. Headings, lists, code blocks, tables and LaTeX formulas are preserved wherever possible, with no extension and no signup.
+                You create a public share link in ChatGPT, paste it into GPTtoPDF, and download the result. The tool accepts supported HTTPS share domains, does not ask for your ChatGPT login, and cannot fetch private conversations. Headings, lists, code blocks, tables, images, and supported math are formatted where possible, but complex layouts may not reproduce exactly.
               </p>
 
               <p>
-                Utility tools earn trust by collecting less. The conversation is held in memory only long enough to create the file. Neither the conversation nor the generated PDF is written to a database or file storage, and neither is kept after delivery.
+                The application processes the shared page for the export request and does not intentionally save conversation contents or generated PDF files in its database or file storage. Hosting and analytics systems can still process operational metadata such as request timing, referrers, device details, and security logs. See the <Link href="/privacy-policy" className="text-blue-700 font-medium hover:underline">Privacy Policy</Link> for details.
               </p>
 
               <div className="mt-10 p-6 bg-slate-50 border border-slate-100 rounded-xl">

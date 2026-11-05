@@ -3,12 +3,14 @@ import React from 'react';
 
 export default function Navbar() {
   return (
-    <nav role="banner" className="navbar">
+    <nav aria-label="Primary navigation" className="navbar">
       <div className="site-container navbar-inner">
-        <div className="navbar-brand">GPT to PDF</div>
+        <a href="/" className="navbar-brand">GPT to PDF</a>
         <div className="navbar-links">
-          <a href="#faq" className="navbar-link">FAQ</a>
+          <a href="/how-to-use" className="navbar-link">How to use</a>
+          <a href="/#faq" className="navbar-link">FAQ</a>
           <a href="/blog" className="navbar-link">Guides</a>
+          <a href="/contact" className="navbar-link">Contact</a>
         </div>
       </div>
 

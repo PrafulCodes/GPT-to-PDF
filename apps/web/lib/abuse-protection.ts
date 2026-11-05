@@ -98,15 +98,19 @@ async function limitOrFallback(
     return runFallbackWindow(key, limit, windowMs);
   }
 
-  const result = await redisLimiter.limit(key);
-  const retryAfterSeconds = result.success ? 0 : Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
+  try {
+    const result = await redisLimiter.limit(key);
+    const retryAfterSeconds = result.success ? 0 : Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
 
-  return {
-    success: result.success,
-    limit: result.limit,
-    remaining: Math.max(0, result.remaining),
-    retryAfterSeconds
-  };
+    return {
+      success: result.success,
+      limit: result.limit,
+      remaining: Math.max(0, result.remaining),
+      retryAfterSeconds
+    };
+  } catch {
+    return runFallbackWindow(key, limit, windowMs);
+  }
 }
 
 export async function enforceGenerateRateLimits(ip: string, fingerprint: string) {

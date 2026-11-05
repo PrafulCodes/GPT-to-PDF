@@ -1,4 +1,26 @@
-import { db } from '@repo/db';
+import { db, getPrismaErrorCode, isTransientPrismaError } from '@repo/db';
+
+let dailyStatsUpdateInFlight: Promise<void> | null = null;
+
+function logDatabaseFailure(operation: string, error: unknown) {
+  console.error('[Analytics Database Failure]', {
+    operation,
+    code: getPrismaErrorCode(error) || 'UNKNOWN',
+    transient: isTransientPrismaError(error)
+  });
+}
+
+function scheduleDailyStatisticsUpdate(date: Date) {
+  if (dailyStatsUpdateInFlight) return;
+
+  dailyStatsUpdateInFlight = updateDailyStatistics(date)
+    .catch((error) => {
+      logDatabaseFailure('update_daily_statistics', error);
+    })
+    .finally(() => {
+      dailyStatsUpdateInFlight = null;
+    });
+}
 
 export interface TrackingData {
   success: boolean;
@@ -249,7 +271,7 @@ export async function checkDbStatus(): Promise<'CONNECTED' | 'DISCONNECTED'> {
     await db.$queryRaw`SELECT 1`;
     return 'CONNECTED';
   } catch (error) {
-    console.error('[Analytics DB Check] Connection failure:', error);
+    logDatabaseFailure('health_check', error);
     return 'DISCONNECTED';
   }
 }
@@ -583,7 +605,7 @@ export async function trackExportEvent(data: TrackingData): Promise<void> {
       generationDuration: data.generationDuration
     });
   } catch (error) {
-    console.error('[Legacy Analytics Tracker] Failed:', error);
+    logDatabaseFailure('track_export_event', error);
   }
 }
 
@@ -803,7 +825,7 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
         }
       });
 
-      updateDailyStatistics(now).catch(err => console.error('[Telemetry Tracker V4] Daily stats failed:', err));
+      scheduleDailyStatisticsUpdate(now);
     } else if (payload.eventType === 'feature') {
       await db.featureUsage.create({
         data: {
@@ -831,7 +853,7 @@ export async function trackTelemetry(payload: TelemetryPayload): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('[Analytics Telemetry V4] Ingestion crashed:', error);
+    logDatabaseFailure('track_telemetry', error);
   }
 }
 
@@ -2391,4 +2413,3 @@ export async function getSearchConsolePages(range: string): Promise<any[]> {
     return [];
   }
 }
-
