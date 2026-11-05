@@ -2,16 +2,9 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": [
     "DATABASE_URL",
-    "SESSION_SECRET",
-    "ADMIN_PASSWORD_HASH",
     "UPSTASH_REDIS_REST_URL",
     "UPSTASH_REDIS_REST_TOKEN",
-    "NEXT_PUBLIC_SITE_URL",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_REDIRECT_URI",
-    "GOOGLE_SITE_PROPERTY",
-    "GOOGLE_REFRESH_TOKEN"
+    "NEXT_PUBLIC_SITE_URL"
   ],
   "tasks": {
     "build": {

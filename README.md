@@ -132,17 +132,16 @@ No secret keys are required for the core functionality that converts public shar
 ## Project structure
 
 ```
-app/                 # Next.js app routes + pages
-  api/                # API routes (generate-pdf, stats, visitor-count)
-components/          # UI components
-lib/                  # Fetch, parse, generate helpers
-public/               # Static assets and demo screenshots
-styles/               # Global styles
+apps/web/            # Public Next.js app, routes, components, and API
+packages/analytics/  # Analytics parsing and test utilities
+packages/db/         # Database and Prisma integration
+packages/shared/     # Shared TypeScript utilities
+docs/                # Project documentation and content assets
 ```
 
-- `app/` — React pages and entry points
-- `components/` — UI building blocks (Hero, Footer, Input card)
-- `lib/` — core logic: `fetch-chat.ts`, `parse-chat.ts`, `generate-pdf.ts`, `pdf-stats.ts`
+- `apps/web/app/` — React pages and API routes
+- `apps/web/components/` — UI building blocks (Hero, Footer, Input card)
+- `apps/web/lib/` — core logic for fetching, parsing, and PDF generation
 
 ---
 
@@ -190,13 +189,14 @@ Notes: The project uses `puppeteer-core` with `@sparticuz/chromium` to run headl
 - Additional PDF themes and templates
 - More export formats (HTML, Markdown, DOCX)
 - Improved layout and typographic options
-- Analytics and usage dashboards
+- Analytics and usage insights
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Please open issues for bugs or feature requests and submit pull requests with clear descriptions and tests where appropriate.
+Contributions are welcome. Read the [contributor guide](./contributor.md) and
+[contributor development guide](./contributorsguide.md) before opening an issue or pull request.
 
 ---
 
