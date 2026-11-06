@@ -376,6 +376,75 @@ function parseFromStructuredHydration(html: string) {
   return null;
 }
 
+function parseFromEmbeddedJson(html: string): { title: string; messages: Message[] } | null {
+  const trimmed = html.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const data = findConversationNode(parsed);
+      if (data) {
+        const messages = structuredMessages(data);
+        if (messages.length > 0) {
+          const title =
+            (typeof parsed.title === 'string' && parsed.title.trim()) ||
+            (typeof data.title === 'string' && data.title.trim()) ||
+            'ChatGPT Conversation Export';
+          return { title, messages };
+        }
+      }
+    } catch {
+      // not direct json
+    }
+  }
+
+  const mobileMatch = html.match(/<script\b[^>]*id=["']__WEB_MOBILE_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (mobileMatch) {
+    try {
+      const parsed = JSON.parse(mobileMatch[1]);
+      const data = findConversationNode(parsed);
+      if (data) {
+        const messages = structuredMessages(data);
+        if (messages.length > 0) {
+          const title =
+            (typeof parsed.title === 'string' && parsed.title.trim()) ||
+            (typeof parsed.conversation?.title === 'string' && parsed.conversation.title.trim()) ||
+            (typeof data.title === 'string' && data.title.trim()) ||
+            'ChatGPT Conversation Export';
+          return { title, messages };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const jsonScriptRe = /<script\b[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null = null;
+  while ((match = jsonScriptRe.exec(html)) !== null) {
+    const content = match[1].trim();
+    if (content.includes('conversation') || content.includes('messages') || content.includes('linear_conversation')) {
+      try {
+        const parsed = JSON.parse(content);
+        const data = findConversationNode(parsed);
+        if (data) {
+          const messages = structuredMessages(data);
+          if (messages.length > 0) {
+            const title =
+              (typeof parsed.title === 'string' && parsed.title.trim()) ||
+              (typeof data.title === 'string' && data.title.trim()) ||
+              'ChatGPT Conversation Export';
+            return { title, messages };
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return null;
+}
+
 function getTitle($: ReturnType<typeof load>) {
   return $('meta[property="og:title"]').attr('content')?.trim() ||
     $('title').first().text().trim() ||
@@ -383,8 +452,14 @@ function getTitle($: ReturnType<typeof load>) {
 }
 
 function hasConversationSignals($: ReturnType<typeof load>, html: string) {
-  return $('[data-message-author-role], [data-testid*="conversation-turn"]').length > 0 ||
-    /streamController\.enqueue\(/.test(html);
+  return (
+    $('[data-message-author-role], [data-testid*="conversation-turn"]').length > 0 ||
+    /streamController\.enqueue\(/.test(html) ||
+    /__WEB_MOBILE_DATA__/.test(html) ||
+    /linear_conversation/.test(html) ||
+    /conversationState|conversation-state/.test(html) ||
+    (html.trim().startsWith('{') && /"messages"|"linear_conversation"/.test(html))
+  );
 }
 
 function classifyPageStructure(html: string, options: ParseChatOptions): PageClassification {
@@ -494,6 +569,15 @@ export function parseChatHtmlDetailed(html: string, options: ParseChatOptions = 
       diagnostics.structuredNodeFound = true;
       diagnostics.successfulStrategy = 'structured_hydration';
       conversation = { title: structured.title, messages: structured.messages, stats: getConversationStats(structured.messages) };
+    } else {
+      diagnostics.fallbackAttempts.push('embedded_json');
+      diagnostics.strategiesAttempted.push('embedded_json');
+      const embedded = parseFromEmbeddedJson(html);
+      if (embedded) {
+        diagnostics.structuredNodeFound = true;
+        diagnostics.successfulStrategy = 'embedded_json';
+        conversation = { title: embedded.title, messages: embedded.messages, stats: getConversationStats(embedded.messages) };
+      }
     }
   }
 

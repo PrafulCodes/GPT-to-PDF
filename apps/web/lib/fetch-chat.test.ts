@@ -304,3 +304,31 @@ test('classifies empty successful responses as invalid responses', async () => {
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.category, 'INVALID_RESPONSE');
 });
+
+test('recovers from crawler preview stub using backend-api fallback', async () => {
+  const stubHtml = `<!doctype html><html><head><title>Check out this chat</title><meta property="og:title" content="Check out this chat"></head><body><a href="${sharedUrl}">Check out this chat</a></body></html>`;
+  const apiJson = JSON.stringify({
+    title: 'Recovered Chat',
+    linear_conversation: [{ id: '1', message: { author: { role: 'user' }, content: { parts: ['Hello'] } } }]
+  });
+
+  const calls: string[] = [];
+  globalThis.fetch = async (input) => {
+    calls.push(String(input));
+    if (String(input).includes('backend-api')) {
+      return responseWithBody(new TextEncoder().encode(apiJson), { 'content-type': 'application/json' });
+    }
+    return responseWithBody(new TextEncoder().encode(stubHtml), { 'content-type': 'text/html' });
+  };
+
+  const result = await fetchChatPage(sharedUrl, 1000, { sleep: async () => {} });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.contentType, 'application/json');
+    assert.match(result.html, /linear_conversation/);
+  }
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0], sharedUrl);
+  assert.match(calls[1], /backend-api\/share\/test-share/);
+});

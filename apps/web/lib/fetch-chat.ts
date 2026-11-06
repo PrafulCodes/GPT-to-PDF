@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { isAllowedChatHost, parseAndValidateChatUrl } from './validate-url';
 import { logSecurityEvent } from './security';
 
@@ -7,6 +10,73 @@ export const MAX_RETRY_DELAY_MS = 3000;
 const RETRY_BASE_DELAY_MS = 200;
 export const MAX_HTML_BYTES = 8 * 1024 * 1024;
 export const CHAT_PAGE_TOO_LARGE_REASON = 'Fetched page is too large to export. Try a shorter conversation.';
+
+export const BROWSER_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
+
+export const BROWSER_NAVIGATION_HEADERS: Record<string, string> = {
+  'User-Agent': BROWSER_USER_AGENT,
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1'
+};
+
+export function extractShareId(url: URL): string | null {
+  const match = url.pathname.match(/\/share\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+export function isCrawlerStub(html: string): boolean {
+  return (
+    html.length < 15000 &&
+    html.includes('og:title') &&
+    html.includes('Check out this chat') &&
+    !html.includes('streamController.enqueue') &&
+    !html.includes('linear_conversation') &&
+    !html.includes('__WEB_MOBILE_DATA__') &&
+    !html.includes('data-message-author-role')
+  );
+}
+
+async function captureDebugChatPage(
+  html: string,
+  response: Response,
+  finalUrl: string
+) {
+  if (process.env.NODE_ENV !== 'development' || process.env.GPTPDF_DEBUG_CHAT_HTML !== '1') {
+    return;
+  }
+
+  const diagnostics = {
+    status: response.status,
+    finalUrl,
+    bytes: Buffer.byteLength(html),
+    hasReactRouterContext: html.includes('__reactRouterContext'),
+    hasStreamController: html.includes('streamController.enqueue'),
+    hasLinearConversation: html.includes('linear_conversation'),
+    hasDomMessageNodes: html.includes('data-message-author-role'),
+    hasCloudflareChallenge: /cdn-cgi\/challenge-platform|_cf_chl_opt|just a moment|attention required/i.test(html),
+    pageTitle: html.match(/<title[^>]*>(.*?)<\/title>/is)?.[1] ?? null
+  };
+  console.info('GPTPDF_CHAT_HTML_DIAGNOSTICS', diagnostics);
+
+  try {
+    const workspaceRoot = path.basename(process.cwd()) === 'web'
+      ? path.resolve(process.cwd(), '..', '..')
+      : process.cwd();
+    const debugDirectory = path.join(workspaceRoot, 'apps', 'web', '.debug');
+    await mkdir(debugDirectory, { recursive: true });
+    await writeFile(path.join(debugDirectory, 'chat-page-debug.html'), html, 'utf8');
+  } catch (error) {
+    console.error('GPTPDF_CHAT_HTML_DEBUG_CAPTURE_FAILED', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
 
 export type FetchErrorCategory =
   | 'UPSTREAM_RATE_LIMITED'
@@ -214,10 +284,7 @@ export async function fetchChatPage(
         const res = await fetch(normalizedCurrent, {
           method: 'GET',
           redirect: 'manual',
-          headers: {
-            'User-Agent': 'GPT-to-PDF/1.0 (fetch)',
-            Accept: 'text/html,application/xhtml+xml'
-          },
+          headers: BROWSER_NAVIGATION_HEADERS,
           signal: controller.signal
         });
 
@@ -277,6 +344,46 @@ export async function fetchChatPage(
         if (!body.html.trim()) {
           return failure('INVALID_RESPONSE', 502, 'Empty response body', attempt, startedAt);
         }
+
+        if (isCrawlerStub(body.html)) {
+          const shareId = extractShareId(currentUrl);
+          if (shareId) {
+            try {
+              const apiRes = await fetch(`https://chatgpt.com/backend-api/share/${shareId}`, {
+                method: 'GET',
+                headers: {
+                  'User-Agent': BROWSER_USER_AGENT,
+                  Accept: 'application/json, text/plain, */*',
+                  'Accept-Language': 'en-US,en;q=0.9'
+                },
+                signal: controller.signal
+              });
+              if (apiRes.ok) {
+                const apiBody = await readHtmlWithCap(apiRes, controller.signal);
+                if (
+                  apiBody.ok &&
+                  apiBody.html.trim() &&
+                  (apiBody.html.includes('linear_conversation') || apiBody.html.includes('mapping'))
+                ) {
+                  await captureDebugChatPage(apiBody.html, apiRes, normalizedCurrent);
+                  return {
+                    ok: true,
+                    html: apiBody.html,
+                    status: apiRes.status,
+                    contentType: 'application/json',
+                    finalUrl: normalizedCurrent,
+                    bytes: new TextEncoder().encode(apiBody.html).byteLength,
+                    attempts: attempt
+                  };
+                }
+              }
+            } catch {
+              // fallback failed, continue with original body
+            }
+          }
+        }
+
+        await captureDebugChatPage(body.html, res, normalizedCurrent);
 
         return {
           ok: true,

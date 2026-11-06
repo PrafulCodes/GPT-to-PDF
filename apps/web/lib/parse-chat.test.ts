@@ -113,3 +113,63 @@ test('rejects malformed hydration without throwing', () => {
     assert.equal(result.diagnostics.failureClassification, 'UNSUPPORTED_FORMAT');
   }
 });
+
+test('extracts messages from __WEB_MOBILE_DATA__ script format', () => {
+  const mobileData = {
+    title: 'Mobile Shell Chat',
+    conversationState: {
+      messages: [
+        { role: 'user', content: 'Hello from mobile web' },
+        { role: 'assistant', content: 'Hello! How can I assist you today?' }
+      ]
+    }
+  };
+  const html = `<html><head><title>Mobile Shell Chat</title></head><body>
+    <script id="__WEB_MOBILE_DATA__" type="application/json">${JSON.stringify(mobileData)}</script>
+  </body></html>`;
+
+  const result = parseChatHtmlDetailed(html);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.classification, 'VALID_CONVERSATION');
+  assert.equal(result.diagnostics.successfulStrategy, 'embedded_json');
+  assert.equal(result.conversation.title, 'Mobile Shell Chat');
+  assert.equal(result.conversation.messages.length, 2);
+  assert.equal(result.conversation.messages[0].role, 'user');
+  assert.match(result.conversation.messages[0].html, /Hello from mobile web/);
+  assert.equal(result.conversation.messages[1].role, 'assistant');
+});
+
+test('extracts messages from direct JSON conversation payload', () => {
+  const jsonPayload = JSON.stringify({
+    title: 'Direct API Chat',
+    linear_conversation: [
+      {
+        id: 'msg-1',
+        message: {
+          author: { role: 'user' },
+          content: { parts: ['Direct message question'] }
+        }
+      },
+      {
+        id: 'msg-2',
+        message: {
+          author: { role: 'assistant' },
+          content: { parts: ['Direct message answer'] }
+        }
+      }
+    ]
+  });
+
+  const result = parseChatHtmlDetailed(jsonPayload);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.classification, 'VALID_CONVERSATION');
+  assert.equal(result.diagnostics.successfulStrategy, 'embedded_json');
+  assert.equal(result.conversation.title, 'Direct API Chat');
+  assert.equal(result.conversation.messages.length, 2);
+  assert.match(result.conversation.messages[0].html, /Direct message question/);
+  assert.match(result.conversation.messages[1].html, /Direct message answer/);
+});

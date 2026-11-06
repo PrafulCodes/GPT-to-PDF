@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { siteUrl } from '../lib/branding';
 import CookieConsent from '../components/CookieConsent';
+import ApologyModal from '../components/ApologyModal';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -97,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="min-h-screen bg-white">
           {children}
         </div>
+        <ApologyModal />
         <CookieConsent />
       </body>
     </html>
