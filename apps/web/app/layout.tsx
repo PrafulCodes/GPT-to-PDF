@@ -1,6 +1,7 @@
 import './globals.css';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { siteUrl } from '../lib/branding';
 import CookieConsent from '../components/CookieConsent';
 
@@ -80,23 +81,19 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script
-          async
+      <body>
+        <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9624450682944953"
+          strategy="afterInteractive"
           crossOrigin="anonymous"
-        ></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(c,l,a,r,i,t,y){
+        />
+        <Script id="clarity-analytics" strategy="afterInteractive">
+          {`(function(c,l,a,r,i,t,y){
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "yh0vyc2v5z");`
-          }}
-        ></script>
-      </head>
-      <body>
+    })(window, document, "clarity", "script", "yh0vyc2v5z");`}
+        </Script>
         <div className="min-h-screen bg-white">
           {children}
         </div>

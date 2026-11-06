@@ -54,45 +54,47 @@ export default function Footer() {
 
   return (
     <footer role="contentinfo" className="site-footer">
-      <div className="site-container footer-shell">
-        <div className="footer-brand">
-          <div className="footer-brand-name">
-            <a href={siteUrl} className="link footer-brand-link">
-              GPT to PDF
-            </a>
-          </div>
-          <div className="footer-brand-subtitle">Clean exports from your ChatGPT conversations</div>
-        </div>
-
-        <div className="footer-right">
-          <div className="footer-proof-card" ref={counterRef} aria-live="polite">
-            <div className="footer-proof-label">Trusted for</div>
-            <div className="footer-proof-value">
-              <span className={`footer-proof-dot ${isVisible ? 'is-visible' : ''}`} aria-hidden />
-              <span className="footer-proof-count">{countText}</span>
-              <span className="footer-proof-suffix">successful PDFs</span>
+      <div className="footer-shell">
+        <div className="footer-main">
+          <div className="footer-brand">
+            <div className="footer-brand-name">
+              <a href={siteUrl} className="link footer-brand-link">
+                GPT to PDF
+              </a>
             </div>
-            <div className="footer-proof-bytes">{megabytesText} generated (decimal MB)</div>
+            <div className="footer-brand-subtitle">Clean exports from your ChatGPT conversations</div>
           </div>
 
-          <div className="footer-nav-groups">
-            <nav className="footer-links" aria-label="Main links">
-              <a href="/" className="link footer-link">Home</a>
-              <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
-              <a href="/how-to-use" className="link footer-link">How to use</a>
-              <a href="/video/how-to-convert-chatgpt-to-pdf" className="link footer-link">Video guide</a>
-              <a href="/#faq" className="link footer-link">FAQ</a>
-              <a href="/about" className="link footer-link">About</a>
-              <a href="/blog" className="link footer-link">Guides</a>
-              <a href="/contact" className="link footer-link">Contact</a>
-            </nav>
-            <nav className="footer-links footer-legal" aria-label="Legal links">
-              <a href="/privacy-policy" className="link footer-link">Privacy Policy</a>
-              <a href="/terms" className="link footer-link">Terms</a>
-            </nav>
+          <div className="footer-right">
+            <div className="footer-proof-card" ref={counterRef} aria-live="polite">
+              <div className="footer-proof-label">Trusted for</div>
+              <div className="footer-proof-value">
+                <span className={`footer-proof-dot ${isVisible ? 'is-visible' : ''}`} aria-hidden />
+                <span className="footer-proof-count">{countText}</span>
+                <span className="footer-proof-suffix">successful PDFs</span>
+              </div>
+              <div className="footer-proof-bytes">{megabytesText} generated (decimal MB)</div>
+            </div>
+
+            <div className="footer-nav-groups">
+              <nav className="footer-links" aria-label="Main links">
+                <a href="/" className="link footer-link">Home</a>
+                <a href="/chatgpt-shared-link-to-pdf" className="link footer-link">Shared Links</a>
+                <a href="/how-to-use" className="link footer-link">How to use</a>
+                <a href="/video/how-to-convert-chatgpt-to-pdf" className="link footer-link">Video guide</a>
+                <a href="/#faq" className="link footer-link">FAQ</a>
+                <a href="/about" className="link footer-link">About</a>
+                <a href="/blog" className="link footer-link">Guides</a>
+                <a href="/contact" className="link footer-link">Contact</a>
+              </nav>
+              <nav className="footer-links footer-legal" aria-label="Legal links">
+                <a href="/privacy-policy" className="link footer-link">Privacy Policy</a>
+                <a href="/terms" className="link footer-link">Terms</a>
+              </nav>
+            </div>
           </div>
         </div>
-        <div className="site-container footer-meta-row">
+        <div className="footer-meta-row">
           <a href={creatorUrl} className="link footer-meta-link">
             {creatorName}
           </a>
@@ -102,7 +104,7 @@ export default function Footer() {
           </a>
         </div>
 
-        <div className="site-container footer-disclaimer">
+        <div className="footer-disclaimer">
           © 2026 GPTtoPDF. Not affiliated with or endorsed by OpenAI. ChatGPT is a trademark of OpenAI.
         </div>
       </div>
@@ -113,7 +115,31 @@ export default function Footer() {
           flex-direction: column;
           gap: 6px;
         }
-.footer-disclaimer {
+
+        .footer-shell {
+          display: block;
+          width: 100%;
+          max-width: 1120px;
+          padding: 0 20px;
+          box-sizing: border-box;
+          margin-inline: auto;
+        }
+
+        .footer-main {
+          display: grid;
+          grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr);
+          align-items: start;
+          gap: 32px;
+        }
+
+        .footer-right {
+          display: grid;
+          grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+          align-items: start;
+          gap: 24px;
+        }
+
+        .footer-disclaimer {
           margin-top: 8px;
           font-size: 12px;
           line-height: 1.5;
@@ -188,6 +214,7 @@ export default function Footer() {
           flex-direction: column;
           align-items: flex-end;
           gap: 12px;
+          min-width: 0;
         }
 
         .footer-links {
@@ -216,7 +243,9 @@ export default function Footer() {
         }
 
         .footer-meta-row {
-          margin-top: 10px;
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 1px solid var(--color-border);
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
@@ -225,7 +254,31 @@ export default function Footer() {
           color: var(--color-text-tertiary);
         }
 
+        @media (max-width: 760px) {
+          .footer-main {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+
+          .footer-right {
+            grid-template-columns: minmax(200px, 0.8fr) minmax(0, 1.2fr);
+          }
+
+          .footer-nav-groups {
+            align-items: flex-start;
+          }
+
+          .footer-links {
+            justify-content: flex-start;
+          }
+        }
+
         @media (max-width: 640px) {
+          .footer-right {
+            grid-template-columns: 1fr;
+            gap: 18px;
+          }
+
           .footer-proof-card {
             width: 100%;
             min-width: 0;
@@ -240,13 +293,15 @@ export default function Footer() {
             font-size: 17px;
           }
 
-          .footer-nav-groups {
-            align-items: flex-start;
-          }
+          .footer-meta-row { margin-top: 20px; }
+        }
 
-          .footer-links {
-            justify-content: flex-start;
-          }
+        @media (max-width: 414px) {
+          .footer-shell { padding-inline: 16px; }
+        }
+
+        @media (max-width: 320px) {
+          .footer-shell { padding-inline: 12px; }
         }
       `}</style>
     </footer>
