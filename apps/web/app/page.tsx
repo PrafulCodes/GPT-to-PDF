@@ -233,19 +233,20 @@ export default function Page() {
           </div>
           
           <div className="video-container">
-            <video 
-              controls 
-              preload="none" 
-              playsInline 
-              width="1280" 
-              height="720"
-              poster="/og-image.png"
+            <Link
+              href="/video/how-to-convert-chatgpt-to-pdf"
+              className="video-watch-link"
+              aria-label="Watch the GPTtoPDF product demonstration"
             >
-              <source src="/video/gpttopdf-demo.webm" type="video/webm" />
-              {/* Fallback mp4 will be added here once generated via ffmpeg */}
-              {/* <source src="/video/gpttopdf-demo.mp4" type="video/mp4" /> */}
-              Your browser does not support the video tag.
-            </video>
+              <img
+                src="/og-image.png"
+                width="1280"
+                height="720"
+                alt="Watch how to convert a ChatGPT link to PDF"
+                loading="lazy"
+              />
+              <span className="video-watch-action">Watch the product demonstration</span>
+            </Link>
           </div>
         </section>
 

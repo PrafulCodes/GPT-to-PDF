@@ -46,9 +46,26 @@ export default function VideoWatchPage() {
     '@type': 'VideoObject',
     name: videoTitle,
     description: videoDescription,
-    thumbnailUrl: `${siteUrl}/og-image.png`,
+    thumbnailUrl: [
+      `${siteUrl}/og-image.png`
+    ],
     uploadDate: videoUploadDate,
-    contentUrl: `${siteUrl}/video/gpttopdf-demo.webm`
+    datePublished: videoUploadDate,
+    contentUrl: `${siteUrl}/video/gpttopdf-demo.webm`,
+    embedUrl: pageUrl,
+    isFamilyFriendly: true,
+    inLanguage: 'en',
+    publisher: {
+      '@type': 'Organization',
+      name: 'GPTtoPDF',
+      url: siteUrl,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteUrl}/favicon.png`,
+        width: 512,
+        height: 512
+      }
+    }
   };
 
   return (

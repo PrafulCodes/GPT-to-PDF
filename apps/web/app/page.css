@@ -371,6 +371,35 @@
   display: block;
 }
 
+.video-watch-link {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  text-decoration: none;
+}
+
+.video-watch-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.video-watch-action {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
 @media (max-width: 1024px) {
   .persona-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
